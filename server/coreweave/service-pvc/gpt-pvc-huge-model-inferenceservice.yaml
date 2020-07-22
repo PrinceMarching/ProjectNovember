@@ -4,6 +4,7 @@ metadata:
   name: gpt-pvc
   annotations:
     serving.kubeflow.org/gke-accelerator: Tesla_V100
+    autoscaling.knative.dev/scaleToZeroPodRetentionPeriod: “30m”
 spec:
   default:
     predictor:
