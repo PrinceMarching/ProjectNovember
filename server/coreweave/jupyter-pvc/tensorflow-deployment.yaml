@@ -8,7 +8,8 @@ spec:
   # Replicas controls the number of instances of the Pod to maintain running at all times
   # 0 means we only spin one up when we get a request, and scale down to 0 after 30m
   # of no requests
-  replicas: 0
+  # leave at 1 for now, for testing.
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: tensorflow-jupyter
