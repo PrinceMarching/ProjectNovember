@@ -48,7 +48,7 @@ spec:
 
           resources:
             limits:
-	      # limiting to 3 cpus picks cheaper inference, PCIE V100 nodes
+              # limiting to 3 cpus picks cheaper inference, PCIE V100 nodes
               cpu: 3
               memory: 16Gi
               # GPUs can only be allocated as a limit, which both reserves and limits the number of GPUs the Pod will have access to
