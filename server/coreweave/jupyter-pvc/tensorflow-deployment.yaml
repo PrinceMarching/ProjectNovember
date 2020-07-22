@@ -6,7 +6,9 @@ spec:
   strategy:
     type: Recreate
   # Replicas controls the number of instances of the Pod to maintain running at all times
-  replicas: 1
+  # 0 means we only spin one up when we get a request, and scale down to 0 after 30m
+  # of no requests
+  replicas: 0
   selector:
     matchLabels:
       app.kubernetes.io/name: tensorflow-jupyter
