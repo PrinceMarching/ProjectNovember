@@ -4,7 +4,9 @@ metadata:
   name: gpt-pvc
   annotations:
     serving.kubeflow.org/gke-accelerator: Tesla_V100
-    autoscaling.knative.dev/scaleToZeroPodRetentionPeriod: “30m”
+# leave commented out when loading pods the first time
+# try enabling it later, after they're done loading
+#    autoscaling.knative.dev/scaleToZeroPodRetentionPeriod: “30m”
 spec:
   default:
     predictor:
