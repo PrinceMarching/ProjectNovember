@@ -14,7 +14,7 @@ spec:
       maxReplicas: 20
       tensorflow:
         storageUri: pvc://model-storage/1558M/ # The PVC and path inside the PVC to the model
-        runtimeVersion: "1.14.0-gpu"
+        runtimeVersion: "1.15.0-gpu"
         resources:
           limits:
             cpu: 1
@@ -23,7 +23,10 @@ spec:
 
     transformer:
       parallelism: 40
-      minReplicas: 0
+      # keep one transformer online at all times
+	  # it's cheap to run, and we don't want the extra time it takes 
+	  # to spin it up
+      minReplicas: 1
       maxReplicas: 2
       custom:
         container:
