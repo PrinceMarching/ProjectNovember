@@ -24,8 +24,8 @@ spec:
     transformer:
       parallelism: 40
       # keep one transformer online at all times
-	  # it's cheap to run, and we don't want the extra time it takes 
-	  # to spin it up
+      # it's cheap to run, and we don't want the extra time it takes 
+      # to spin it up
       minReplicas: 1
       maxReplicas: 2
       custom:
