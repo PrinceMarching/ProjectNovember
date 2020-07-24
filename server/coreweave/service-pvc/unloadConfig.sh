@@ -1,0 +1,1 @@
+kubectl delete -f gpt-pvc-huge-model-inferenceservice.yaml
