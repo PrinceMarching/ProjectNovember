@@ -6,7 +6,7 @@ metadata:
     serving.kubeflow.org/gke-accelerator: Tesla_V100
 # leave commented out when loading pods the first time
 # try enabling it later, after they're done loading
-#    autoscaling.knative.dev/scaleToZeroPodRetentionPeriod: “30m”
+    autoscaling.knative.dev/scaleToZeroPodRetentionPeriod: "30m"
 spec:
   default:
     predictor:
