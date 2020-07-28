@@ -7,6 +7,7 @@ document.body.appendChild(canvas);
 canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px; margin: auto; border:0px";
 
 
+var scanLinesLoaded = false;
 
 var fontLoaded = false;
 var fontArray = [];
@@ -31,11 +32,18 @@ function drawString( inString, inX, inY ) {
 
 
 
-var cursorFlashCount = 0;
-var flashFrames = 40;
+function getMSTime() {
+	var d = new Date();
+	return d.getTime();
+}
+
+
+var cursorFlashStartTime = getMSTime();
+var flashMS = 500;
 function drawCursor( inX, inY ) {
-	cursorFlashCount ++;
-	if( Math.floor( cursorFlashCount / flashFrames ) % 2 == 0 ) {
+	trigger = 
+		Math.floor( ( ( getMSTime() - cursorFlashStartTime ) / flashMS ) ) % 2;
+	if( trigger == 0 ) {
 		drawString( "|", inX - 2, inY );
 		drawString( "|", inX + 3, inY );
 	}
@@ -91,9 +99,17 @@ window.addEventListener( "keydown", doKeyDown, false );
 var stringToDraw = "Hey there, punk!";
 var stringToDrawProgress = 0;
 
+var charPrintingStartTime = 0;
+var charPrintingStepMS = 25;
+
+
 function drawFrame() {
 	ctx.fillStyle = '#000';
 	ctx.fillRect( 0, 0, 640, 480 );
+
+	if( ! fontLoaded || ! scanLinesLoaded ) {
+		window.requestAnimationFrame(drawFrame);
+		}
 
 	linesToShow = canvas.height / fontSpacingV;
 
@@ -141,7 +157,10 @@ function drawFrame() {
 	}
 
 	// add one character from one line to add
-	if( linesToAdd.length > 0 ) {
+	if( linesToAdd.length > 0 && 
+	  ( getMSTime() - charPrintingStartTime ) > charPrintingStepMS ) {
+		charPrintingStartTime = getMSTime();
+		
 		if( linesToAddProgress[0] == 0 ) {
 			lineBuffer.push( linesToAdd[0].substring( 0, 1 ) );
 			linesToAddProgress[0] ++;
@@ -159,6 +178,9 @@ function drawFrame() {
 			}
 		}
 	}
+	
+	ctx.drawImage( scanLinesImg, 0, 0 );
+
 	window.requestAnimationFrame(drawFrame);
 }
 
@@ -167,15 +189,16 @@ function drawFrame() {
 
 function doKeyPress( e ) {
 	if( e.keyCode >= 32 && e.keyCode < 126 ) {
-		cursorFlashCount = 0;
+		cursorFlashStartTime = getMSTime();
 		c = String.fromCharCode( e.keyCode );
 		liveTypedCommand = liveTypedCommand.concat( c );
 	}
 	else if( e.keyCode == 13 ) {
-		cursorFlashCount = 0;
+		cursorFlashStartTime = getMSTime();
 		addLineToBuffer( liveTypedCommand );
 		liveTypedCommand = "";
-	}
+		beep.play();
+	}		
 }
 
 
@@ -199,12 +222,27 @@ fontImg.onload = function() {
 	for( y=0; y<8; y++ ) {
 		for( x=0; x<16; x++ ) {
 			fontArray.push( 
-				getClippedRegion( fontImg, x * 32, y * 64, 32, 64 ) );
+				getClippedRegion( fontImg, x * 32, y * 64 + 32, 32, 32 ) );
 		}
 	}
 	fontLoaded = true;
 };
 fontImg.src = 'font_32_64.png';
+
+
+var nextBeep = 0;
+var beep = new Audio('beep.wav');
+
+
+
+
+
+var scanLinesImg = new Image();
+scanLinesImg.onload = function() {
+	
+	scanLinesLoaded = true;
+};
+scanLinesImg.src = 'scanLines.png';
 
 
 
