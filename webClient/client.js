@@ -1,7 +1,22 @@
 var canvas = document.createElement("canvas");
 var ctx = canvas.getContext("2d");
-canvas.width = 640;
-canvas.height = 480;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+var baseW = 640;
+var baseH = 480;
+
+var baseAspect = baseW / baseH;
+
+var windowAspect = window.innerWidth / window.innerHeight;
+
+if( windowAspect >= baseAspect ) {
+	// empty bars on sides
+	canvas.height = window.innerHeight;
+	canvas.width = baseAspect * canvas.height;
+}
+
+
 document.body.appendChild(canvas);
 
 canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px; margin: auto; border:0px";
@@ -100,7 +115,7 @@ var stringToDraw = "Hey there, punk!";
 var stringToDrawProgress = 0;
 
 var charPrintingStartTime = 0;
-var charPrintingStepMS = 25;
+var charPrintingStepMS = 50;
 
 
 function drawFrame() {
@@ -196,8 +211,9 @@ function doKeyPress( e ) {
 	else if( e.keyCode == 13 ) {
 		cursorFlashStartTime = getMSTime();
 		addLineToBuffer( liveTypedCommand );
+		playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
+								 charPrintingStepMS );
 		liveTypedCommand = "";
-		beep.play();
 	}		
 }
 
@@ -262,3 +278,65 @@ function getClippedRegion( image, x, y, width, height) {
 
     return canvasSub;
 }
+
+
+
+
+
+// WebAudio API stuff
+
+
+
+var beepSoundObj = { loaded: false, buffer: null };
+// Fix up prefixing
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+var aContext = new AudioContext();
+
+
+
+function loadSoundObject( inURL, inSoundObj ) {
+	var request = new XMLHttpRequest();
+	request.open('GET', inURL, true);
+	request.responseType = 'arraybuffer';
+	
+	// Decode asynchronously
+	request.onload = function() {
+		aContext.decodeAudioData( request.response, function(buffer) {
+			inSoundObj.buffer = buffer;
+			inSoundObj.loaded = true;
+		} );
+	}
+	request.send();
+}
+
+
+function playSoundObjectAtTime( inSoundObj, inTime ) {
+	if( ! inSoundObj.loaded ) {
+		return;
+	}
+	// creates a sound source
+	var source = aContext.createBufferSource(); 
+	
+	// tell the source which sound to play
+	source.buffer = inSoundObj.buffer;
+	
+	// connect the source to the context's destination (the speakers)
+	source.connect( aContext.destination );
+	// play the source at specified time
+	source.start( inTime );                           
+}
+
+
+function playSoundObjectSequence( inSoundObj, inPlayCount, inSpacingMS ) {
+	var startTime = aContext.currentTime;
+	for( i=0; i<inPlayCount; i++ ) {
+		playSoundObjectAtTime( inSoundObj, startTime );
+		startTime += inSpacingMS / 1000.0;
+	}
+}
+
+
+
+loadSoundObject( "beep2.wav", beepSoundObj );
+
+
