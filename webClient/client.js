@@ -60,11 +60,9 @@ canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px
 
 var scanLinesLoaded = false;
 
-var fontLoaded = false;
-var fontArray = [];
 
 function drawString( inString, inX, inY, inColor = "#FFFFFF" ) {
-	if( ! fontLoaded ) {
+	if( ! getFontLoaded() ) {
 		return;
 	}
 	
@@ -274,28 +272,6 @@ function doKeyDown( e ) {
 
 
 
-var fontImg = new Image();
-fontImg.onload = function() {
-	fontLoaded = true;
-};
-fontImg.src = 'font_32_64.png';
-
-
-function getColoredFont( inColor ) {
-	if( !( inColor in fontArray ) ) {
-		fontColored = getColoredImage( fontImg, inColor );
-
-		fontArray[ inColor ] = []
-		for( y=0; y<8; y++ ) {
-			for( x=0; x<16; x++ ) {
-				fontArray[ inColor ].push( 
-					getClippedRegion( fontColored, 
-									  x * 32, y * 64 + 32, 32, 32 ) );
-			}
-		}
-	}
-	return fontArray[ inColor ];
-}
 
 
 var nextBeep = 0;
@@ -318,96 +294,9 @@ scanLinesImg.src = 'scanLines.png';
 
 
 
-function getClippedRegion( image, x, y, width, height) {
-    var canvasSub = document.createElement( 'canvas' ),
-    ctxSub = canvasSub.getContext( '2d' );
-
-    canvasSub.width = width;
-    canvasSub.height = height;
-
-    //                   source region         dest. region
-    ctxSub.drawImage(image, x, y, width, height,  0, 0, width, height);
-
-    return canvasSub;
-}
+beepSoundObj = loadSoundObject( "beep2.wav" );
 
 
 
-function getColoredImage( image, inColor ) {
-    var canvasSub = document.createElement( 'canvas' ),
-    ctxSub = canvasSub.getContext( '2d' );
-
-    canvasSub.width = image.width;
-    canvasSub.height = image.height;
-
-    ctxSub.drawImage(image, 0, 0);
-
-	ctxSub.globalAlpha=1.0
-	ctxSub.globalCompositeOperation="source-in";
-	ctxSub.fillStyle = inColor;
-	ctxSub.fillRect( 0, 0, image.width, image.height );
-
-    return canvasSub;
-}
-
-
-
-
-
-// WebAudio API stuff
-
-
-
-var beepSoundObj = { loaded: false, buffer: null };
-// Fix up prefixing
-window.AudioContext = window.AudioContext || window.webkitAudioContext;
-var aContext = new AudioContext();
-
-
-
-function loadSoundObject( inURL, inSoundObj ) {
-	var request = new XMLHttpRequest();
-	request.open('GET', inURL, true);
-	request.responseType = 'arraybuffer';
-	
-	// Decode asynchronously
-	request.onload = function() {
-		aContext.decodeAudioData( request.response, function(buffer) {
-			inSoundObj.buffer = buffer;
-			inSoundObj.loaded = true;
-		} );
-	}
-	request.send();
-}
-
-
-function playSoundObjectAtTime( inSoundObj, inTime ) {
-	if( ! inSoundObj.loaded ) {
-		return;
-	}
-	// creates a sound source
-	var source = aContext.createBufferSource(); 
-	
-	// tell the source which sound to play
-	source.buffer = inSoundObj.buffer;
-	
-	// connect the source to the context's destination (the speakers)
-	source.connect( aContext.destination );
-	// play the source at specified time
-	source.start( inTime );                           
-}
-
-
-function playSoundObjectSequence( inSoundObj, inPlayCount, inSpacingMS ) {
-	var startTime = aContext.currentTime;
-	for( i=0; i<inPlayCount; i++ ) {
-		playSoundObjectAtTime( inSoundObj, startTime );
-		startTime += inSpacingMS / 1000.0;
-	}
-}
-
-
-
-loadSoundObject( "beep2.wav", beepSoundObj );
 
 
