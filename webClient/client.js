@@ -8,8 +8,6 @@ var baseH = 480;
 
 var drawScale = 1;
 
-var baseFontSpacingH = 20;
-var baseFontSpacingV = 40;
 
 var fontSpacingH = baseFontSpacingH * drawScale;
 var fontSpacingV = baseFontSpacingV * drawScale;

@@ -2,6 +2,9 @@ var fontLoaded = false;
 var fontArray = [];
 
 
+var baseFontSpacingH = 20;
+var baseFontSpacingV = 40;
+
 
 var fontImg = new Image();
 fontImg.onload = function() {
