@@ -1,20 +1,56 @@
 var canvas = document.createElement("canvas");
 var ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
 
 var baseW = 640;
 var baseH = 480;
 
-var baseAspect = baseW / baseH;
 
-var windowAspect = window.innerWidth / window.innerHeight;
 
-if( windowAspect >= baseAspect ) {
-	// empty bars on sides
-	canvas.height = window.innerHeight;
-	canvas.width = baseAspect * canvas.height;
+var drawScale = 1;
+
+var baseFontSpacingH = 20;
+var baseFontSpacingV = 40;
+
+var fontSpacingH = baseFontSpacingH * drawScale;
+var fontSpacingV = baseFontSpacingV * drawScale;
+
+
+function reportWindowSize() {
+	baseAspect = baseW / baseH;
+	windowAspect = window.innerWidth / window.innerHeight;
+	
+	if( windowAspect >= baseAspect ) {
+		// empty bars on sides	
+		drawScale = window.innerHeight / baseH;
+		}
+	else {
+		// empty bars on top/bottom
+		drawScale = window.innerWidth / baseW;
+	}
+	
+		// whole multiples, to avoid weird aliasing
+	if( drawScale > 1 ) {
+		drawScale = Math.floor( drawScale );
+	}
+	else {
+		// whole divisions 1/2, 1/3, 1/4, etc.
+		invDrawScale = Math.ceil( 1 / drawScale );
+		drawScale = 1 / invDrawScale;
+	}
+	
+	canvas.height = baseH * drawScale;
+	canvas.width = baseW * drawScale;
+	
+	fontSpacingH = baseFontSpacingH * drawScale;
+	fontSpacingV = baseFontSpacingV * drawScale;
 }
+
+
+window.onresize = reportWindowSize;
+
+// do one resize call at start
+reportWindowSize();
+
 
 
 document.body.appendChild(canvas);
@@ -26,8 +62,6 @@ var scanLinesLoaded = false;
 
 var fontLoaded = false;
 var fontArray = [];
-var fontSpacingH = 20;
-var fontSpacingV = 40;
 
 function drawString( inString, inX, inY ) {
 	if( ! fontLoaded ) {
@@ -39,7 +73,8 @@ function drawString( inString, inX, inY ) {
 		function( c ) {
 			i = c.charCodeAt( 0 );
 			f = fontArray[ i ];
-			ctx.drawImage( f, x, inY );
+			ctx.drawImage( f, x, inY, 
+						   f.width * drawScale, f.height * drawScale );
 			x += fontSpacingH;
 		}
 	);
@@ -59,8 +94,8 @@ function drawCursor( inX, inY ) {
 	trigger = 
 		Math.floor( ( ( getMSTime() - cursorFlashStartTime ) / flashMS ) ) % 2;
 	if( trigger == 0 ) {
-		drawString( "|", inX - 2, inY );
-		drawString( "|", inX + 3, inY );
+		drawString( "|", inX - 2 * drawScale, inY );
+		drawString( "|", inX + 3 * drawScale, inY );
 	}
 	// else skip drawing
 	}
@@ -120,7 +155,7 @@ var charPrintingStepMS = 50;
 
 function drawFrame() {
 	ctx.fillStyle = '#000';
-	ctx.fillRect( 0, 0, 640, 480 );
+	ctx.fillRect( 0, 0, canvas.width, canvas.height );
 
 	if( ! fontLoaded || ! scanLinesLoaded ) {
 		window.requestAnimationFrame(drawFrame);
@@ -194,7 +229,9 @@ function drawFrame() {
 		}
 	}
 	
-	ctx.drawImage( scanLinesImg, 0, 0 );
+	ctx.drawImage( scanLinesImg, 0, 0, 
+				   scanLinesImg.width * drawScale,
+				   scanLinesImg.height * drawScale );
 
 	window.requestAnimationFrame(drawFrame);
 }
@@ -204,6 +241,7 @@ function drawFrame() {
 
 function doKeyPress( e ) {
 	if( e.keyCode >= 32 && e.keyCode < 126 ) {
+		e.preventDefault();
 		cursorFlashStartTime = getMSTime();
 		c = String.fromCharCode( e.keyCode );
 		liveTypedCommand = liveTypedCommand.concat( c );
@@ -221,7 +259,8 @@ function doKeyPress( e ) {
 
 function doKeyDown( e ) {
 	if( e.keyCode == 8 ) {
-		cursorFlashCount = 0;
+		e.preventDefault();
+		cursorFlashStartTime = getMSTime();
 		if( liveTypedCommand.length > 0 ) {
 			liveTypedCommand = 
 				liveTypedCommand.substring( 0, liveTypedCommand.length - 1 );
