@@ -63,16 +63,19 @@ var scanLinesLoaded = false;
 var fontLoaded = false;
 var fontArray = [];
 
-function drawString( inString, inX, inY ) {
+function drawString( inString, inX, inY, inColor = "#FFFFFF" ) {
 	if( ! fontLoaded ) {
 		return;
 	}
+	
+	font = getColoredFont( inColor );
+
 	a = Array.from( inString );
 	x = inX
 	a.forEach(
 		function( c ) {
 			i = c.charCodeAt( 0 );
-			f = fontArray[ i ];
+			f = font[ i ];
 			ctx.drawImage( f, x, inY, 
 						   f.width * drawScale, f.height * drawScale );
 			x += fontSpacingH;
@@ -94,7 +97,7 @@ function drawCursor( inX, inY ) {
 	trigger = 
 		Math.floor( ( ( getMSTime() - cursorFlashStartTime ) / flashMS ) ) % 2;
 	if( trigger == 0 ) {
-		drawString( "|", inX - 2 * drawScale, inY );
+		drawString( "|", inX - 2 * drawScale, inY, "#FF0000" );
 		drawString( "|", inX + 3 * drawScale, inY );
 	}
 	// else skip drawing
@@ -180,14 +183,14 @@ function drawFrame() {
 	if( commandLines.length > 1 ) {
 		drawY -= fontSpacingV * ( commandLines.length - 1 );
 	}
-	drawString( ">", 10, drawY );
+	drawString( ">", 10, drawY, "#FFFF00" );
 	
 	lineY = drawY;
 	lineI = 0;
 	
 	commandLines.forEach(
 		function( line ) {
-			drawString( line, 10 + fontSpacingH, lineY );
+			drawString( line, 10 + fontSpacingH, lineY, "#FFFF00" );
 			if( lineI == commandLines.length - 1 ) {
 				// last line of current command
 				// put cursor at end
@@ -273,16 +276,26 @@ function doKeyDown( e ) {
 
 var fontImg = new Image();
 fontImg.onload = function() {
-	
-	for( y=0; y<8; y++ ) {
-		for( x=0; x<16; x++ ) {
-			fontArray.push( 
-				getClippedRegion( fontImg, x * 32, y * 64 + 32, 32, 32 ) );
-		}
-	}
 	fontLoaded = true;
 };
 fontImg.src = 'font_32_64.png';
+
+
+function getColoredFont( inColor ) {
+	if( !( inColor in fontArray ) ) {
+		fontColored = getColoredImage( fontImg, inColor );
+
+		fontArray[ inColor ] = []
+		for( y=0; y<8; y++ ) {
+			for( x=0; x<16; x++ ) {
+				fontArray[ inColor ].push( 
+					getClippedRegion( fontColored, 
+									  x * 32, y * 64 + 32, 32, 32 ) );
+			}
+		}
+	}
+	return fontArray[ inColor ];
+}
 
 
 var nextBeep = 0;
@@ -314,6 +327,25 @@ function getClippedRegion( image, x, y, width, height) {
 
     //                   source region         dest. region
     ctxSub.drawImage(image, x, y, width, height,  0, 0, width, height);
+
+    return canvasSub;
+}
+
+
+
+function getColoredImage( image, inColor ) {
+    var canvasSub = document.createElement( 'canvas' ),
+    ctxSub = canvasSub.getContext( '2d' );
+
+    canvasSub.width = image.width;
+    canvasSub.height = image.height;
+
+    ctxSub.drawImage(image, 0, 0);
+
+	ctxSub.globalAlpha=1.0
+	ctxSub.globalCompositeOperation="source-in";
+	ctxSub.fillStyle = inColor;
+	ctxSub.fillRect( 0, 0, image.width, image.height );
 
     return canvasSub;
 }
