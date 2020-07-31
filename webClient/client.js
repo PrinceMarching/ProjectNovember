@@ -59,7 +59,8 @@ canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px
 var scanLinesLoaded = false;
 
 
-function drawString( inString, inX, inY, inColor = "#FFFFFF" ) {
+function drawString( inString, inX, inY, inCTX,
+					 inColor = "#FFFFFF" ) {
 	if( ! getFontLoaded() ) {
 		return;
 	}
@@ -67,13 +68,13 @@ function drawString( inString, inX, inY, inColor = "#FFFFFF" ) {
 	font = getColoredFont( inColor );
 
 	a = Array.from( inString );
-	x = inX
+	x = inX;
 	a.forEach(
 		function( c ) {
 			i = c.charCodeAt( 0 );
 			f = font[ i ];
-			ctx.drawImage( f, x, inY, 
-						   f.width * drawScale, f.height * drawScale );
+			inCTX.drawImage( f, x, inY, 
+							 f.width * drawScale, f.height * drawScale );
 			x += fontSpacingH;
 		}
 	);
@@ -89,12 +90,12 @@ function getMSTime() {
 
 var cursorFlashStartTime = getMSTime();
 var flashMS = 500;
-function drawCursor( inX, inY ) {
+function drawCursor( inX, inY, inCTX ) {
 	trigger = 
 		Math.floor( ( ( getMSTime() - cursorFlashStartTime ) / flashMS ) ) % 2;
 	if( trigger == 0 ) {
-		drawString( "|", inX - 2 * drawScale, inY, "#FF0000" );
-		drawString( "|", inX + 3 * drawScale, inY );
+		drawString( "|", inX - 2 * drawScale, inY, inCTX, "#FF0000" );
+		drawString( "|", inX + 3 * drawScale, inY, inCTX  );
 	}
 	// else skip drawing
 	}
@@ -152,15 +153,23 @@ var charPrintingStartTime = 0;
 var charPrintingStepMS = 50;
 
 
+
 function drawFrame() {
-	ctx.fillStyle = '#000';
-	ctx.fillRect( 0, 0, canvas.width, canvas.height );
+	drawFrameContents( ctx, canvas );
+}
+
+
+
+function drawFrameContents( inCTX, inCanvas ) {
+	inCTX.fillStyle = '#000';
+	inCTX.fillRect( 0, 0, inCanvas.width, inCanvas.height );
 
 	if( ! fontLoaded || ! scanLinesLoaded ) {
-		window.requestAnimationFrame(drawFrame);
+		window.requestAnimationFrame( drawFrame );
+		return;
 		}
 
-	linesToShow = canvas.height / fontSpacingV;
+	linesToShow = inCanvas.height / fontSpacingV;
 
 	// leave room for live command at bottom
 	linesToShow - 1;
@@ -171,27 +180,27 @@ function drawFrame() {
 	}
 
 	commandLines = longLineSplitter( liveTypedCommand, 
-									 canvas.width / fontSpacingH - 3 );
+									 inCanvas.width / fontSpacingH - 3 );
 	
 
-	drawY = canvas.height - 2 * fontSpacingV;
+	drawY = inCanvas.height - 2 * fontSpacingV;
 
 	if( commandLines.length > 1 ) {
 		drawY -= fontSpacingV * ( commandLines.length - 1 );
 	}
-	drawString( ">", 10, drawY, "#FFFF00" );
+	drawString( ">", 10, drawY, inCTX, "#FFFF00" );
 	
 	lineY = drawY;
 	lineI = 0;
 	
 	commandLines.forEach(
 		function( line ) {
-			drawString( line, 10 + fontSpacingH, lineY, "#FFFF00" );
+			drawString( line, 10 + fontSpacingH, lineY, inCTX, "#FFFF00" );
 			if( lineI == commandLines.length - 1 ) {
 				// last line of current command
 				// put cursor at end
 				drawCursor( 10 + fontSpacingH + fontSpacingH *
-							line.length, lineY ); 
+							line.length, lineY, inCTX ); 
 			}
 			lineI ++;
 			lineY += fontSpacingV;
@@ -201,7 +210,7 @@ function drawFrame() {
 	drawY -= fontSpacingV;
 
 	for (var i = lineBuffer.length - 1; i >= linesToSkip; i--) {
-		drawString( lineBuffer[i], 10, drawY );
+		drawString( lineBuffer[i], 10, drawY, inCTX );
 		drawY -= fontSpacingV;
 	}
 
@@ -228,11 +237,19 @@ function drawFrame() {
 		}
 	}
 	
-	ctx.drawImage( scanLinesImg, 0, 0, 
-				   scanLinesImg.width * drawScale,
-				   scanLinesImg.height * drawScale );
 
-	window.requestAnimationFrame(drawFrame);
+	scanLinesCover = scanLinesImg.height * drawScale;
+	
+	scanLinesCoverTotal = 0;
+
+	while( scanLinesCoverTotal < inCanvas.height ) {
+		
+		inCTX.drawImage( scanLinesImg, 0, scanLinesCoverTotal, 
+						 scanLinesImg.width * drawScale,
+						 scanLinesImg.height * drawScale );
+		scanLinesCoverTotal += scanLinesCover;
+	}
+	window.requestAnimationFrame( drawFrame );
 }
 
 
@@ -247,11 +264,36 @@ function doKeyPress( e ) {
 	}
 	else if( e.keyCode == 13 ) {
 		cursorFlashStartTime = getMSTime();
-		addLineToBuffer( liveTypedCommand );
-		playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
-								 charPrintingStepMS );
+
+		isExport = false;
+		if( liveTypedCommand == "export" ) {
+			isExport = true;
+		}
+		else {
+			addLineToBuffer( liveTypedCommand );
+			playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
+									 charPrintingStepMS );
+			}
 		liveTypedCommand = "";
+		
+		if( isExport ) {
+			exportAll();
+		}
 	}		
+}
+
+
+
+function exportAll() {
+	var canvasSub = document.createElement( 'canvas' ),
+    ctxSub = canvasSub.getContext( '2d' );
+
+    canvasSub.width = canvas.width;
+    canvasSub.height = fontSpacingV * ( lineBuffer.length + 3 );
+
+	drawFrameContents( ctxSub, canvasSub );
+	url = canvasSub.toDataURL( "image/png" );
+	window.open( url, '_blank');
 }
 
 
