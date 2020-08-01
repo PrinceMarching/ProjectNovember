@@ -2,7 +2,7 @@ var fontLoaded = false;
 var fontArray = [];
 
 
-var baseFontSpacingH = 20;
+var baseFontSpacingH = 16;
 var baseFontSpacingV = 40;
 
 
@@ -10,7 +10,9 @@ var fontImg = new Image();
 fontImg.onload = function() {
 	fontLoaded = true;
 };
-fontImg.src = 'font_32_64.png';
+fontImg.src = 'font_computer.png';
+
+var gridSpacing = 32;
 
 
 // returned font is array of images indexed by ascii character indices
@@ -23,7 +25,10 @@ function getColoredFont( inColor ) {
 			for( x=0; x<16; x++ ) {
 				fontArray[ inColor ].push( 
 					getClippedRegion( fontColored, 
-									  x * 32, y * 64 + 32, 32, 32 ) );
+									  x * gridSpacing, 
+									  y * gridSpacing, 
+									  gridSpacing, 
+									  gridSpacing ) );
 			}
 		}
 	}

@@ -94,8 +94,8 @@ function drawCursor( inX, inY, inCTX ) {
 	trigger = 
 		Math.floor( ( ( getMSTime() - cursorFlashStartTime ) / flashMS ) ) % 2;
 	if( trigger == 0 ) {
-		drawString( "|", inX - 2 * drawScale, inY, inCTX, "#FF0000" );
-		drawString( "|", inX + 3 * drawScale, inY, inCTX  );
+		drawString( "]", inX - 4 * drawScale, inY, inCTX, "#FF0000" );
+		drawString( "]", inX + 1 * drawScale, inY, inCTX  );
 	}
 	// else skip drawing
 	}
