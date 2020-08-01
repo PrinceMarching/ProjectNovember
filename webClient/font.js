@@ -2,7 +2,7 @@ var fontLoaded = false;
 var fontArray = [];
 
 
-var baseFontSpacingH = 16;
+var baseFontSpacingH = 17;
 var baseFontSpacingV = 40;
 
 

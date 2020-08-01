@@ -118,14 +118,18 @@ function longLineSplitter( inString, maxLength ){
 
 
 var lineBuffer = [];
+var lineBufferColor = [];
 
 var linesToAdd = [];
 
 var linesToAddProgress = [];
 
+var linesToAddColor = [];
+
+
 var liveTypedCommand = "";
 
-function addLineToBuffer( inString ) {
+function addLineToBuffer( inString, inColor ) {
 	charsWide = canvas.width / fontSpacingH - 1;
 	newLines = longLineSplitter( inString, charsWide );
 	linesToAdd = linesToAdd.concat( newLines );
@@ -133,6 +137,7 @@ function addLineToBuffer( inString ) {
 	newLines.forEach(
 		function( line ) {
 			linesToAddProgress.push( 0 );
+			linesToAddColor.push( inColor );
 		}
 	);
 }
@@ -210,7 +215,7 @@ function drawFrameContents( inCTX, inCanvas ) {
 	drawY -= fontSpacingV;
 
 	for (var i = lineBuffer.length - 1; i >= linesToSkip; i--) {
-		drawString( lineBuffer[i], 10, drawY, inCTX );
+		drawString( lineBuffer[i], 10, drawY, inCTX, lineBufferColor[i] );
 		drawY -= fontSpacingV;
 	}
 
@@ -221,6 +226,7 @@ function drawFrameContents( inCTX, inCanvas ) {
 		
 		if( linesToAddProgress[0] == 0 ) {
 			lineBuffer.push( linesToAdd[0].substring( 0, 1 ) );
+			lineBufferColor.push( linesToAddColor[0] );
 			linesToAddProgress[0] ++;
 		}
 		else {
@@ -233,6 +239,7 @@ function drawFrameContents( inCTX, inCanvas ) {
 			if( linesToAddProgress[0] >= linesToAdd[0].length ) {
 				linesToAdd.shift();
 				linesToAddProgress.shift();
+				linesToAddColor.shift();
 			}
 		}
 	}
@@ -270,7 +277,9 @@ function doKeyPress( e ) {
 			isExport = true;
 		}
 		else {
-			addLineToBuffer( liveTypedCommand );
+
+			var randomColor = Math.floor(Math.random()*16777215).toString(16);
+			addLineToBuffer( liveTypedCommand, "#".concat( randomColor ) );
 			playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
 									 charPrintingStepMS );
 			}
