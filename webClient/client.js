@@ -321,6 +321,18 @@ function doKeyDown( e ) {
 
 
 
+window.addEventListener( 'paste', (event) => {
+    let paste = 
+		( event.clipboardData || window.clipboardData ).getData('text');
+	
+	if( paste != "" ) {
+		cursorFlashStartTime = getMSTime();
+		liveTypedCommand = liveTypedCommand.concat( paste );
+	}
+} );
+
+
+
 
 
 var nextBeep = 0;
