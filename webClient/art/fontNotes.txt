@@ -1,0 +1,3 @@
+Gaussian blur, radius 7.
+
+Mix with solid font with 97% opacity.
