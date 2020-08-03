@@ -41,6 +41,7 @@ function reportWindowSize() {
 	
 	fontSpacingH = baseFontSpacingH * drawScale;
 	fontSpacingV = baseFontSpacingV * drawScale;
+	redrawNow();
 }
 
 
@@ -57,7 +58,7 @@ canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px
 
 
 var scanLinesLoaded = false;
-
+var vignetteLoaded = false;
 
 function drawString( inString, inX, inY, inCTX,
 					 inColor = "#FFFFFF" ) {
@@ -205,7 +206,7 @@ function drawFrameContents( inCTX, inCanvas ) {
 	inCTX.fillStyle = '#000';
 	inCTX.fillRect( 0, 0, inCanvas.width, inCanvas.height );
 
-	if( ! fontLoaded || ! scanLinesLoaded ) {
+	if( ! fontLoaded || ! scanLinesLoaded || ! vignetteLoaded ) {
 		redrawNow();
 		return;
 		}
@@ -287,12 +288,25 @@ function drawFrameContents( inCTX, inCanvas ) {
 	
 	scanLinesCoverTotal = 0;
 
+	numScanlinesDrawn = 0;
 	while( scanLinesCoverTotal < inCanvas.height ) {
 		
 		inCTX.drawImage( scanLinesImg, 0, scanLinesCoverTotal, 
 						 scanLinesImg.width * drawScale,
 						 scanLinesImg.height * drawScale );
 		scanLinesCoverTotal += scanLinesCover;
+		numScanlinesDrawn ++;
+	}
+	
+	if( numScanlinesDrawn <= 1 ) {
+		// single screen, not export
+		
+		ctx.globalAlpha = 0.50;
+
+		inCTX.drawImage( vignetteImg, 0, 0, 
+						 vignetteImg.width * drawScale,
+						 vignetteImg.height * drawScale );
+		ctx.globalAlpha = 1.0;
 	}
 }
 
@@ -387,6 +401,15 @@ scanLinesImg.onload = function() {
 	scanLinesLoaded = true;
 };
 scanLinesImg.src = 'scanLines.png';
+
+
+
+var vignetteImg = new Image();
+vignetteImg.onload = function() {
+	
+	vignetteLoaded = true;
+};
+vignetteImg.src = 'screenVignette.png';
 
 
 
