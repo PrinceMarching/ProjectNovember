@@ -90,15 +90,38 @@ function getMSTime() {
 
 var cursorFlashStartTime = getMSTime();
 var flashMS = 500;
+var lastWasDraw = false;
+
+
+
+function resetCursorFlash() {
+	cursorFlashStartTime = getMSTime();
+	lastWasDraw = false;
+}
+
+
+
 function drawCursor( inX, inY, inCTX ) {
 	trigger = 
 		Math.floor( ( ( getMSTime() - cursorFlashStartTime ) / flashMS ) ) % 2;
 	if( trigger == 0 ) {
+		if( ! lastWasDraw ) {
+			// schedule redraw to keep cursor flashing
+			lastWasDraw = true;
+			timedRedraw( flashMS );
+		}
 		drawString( "]", inX - 4 * drawScale, inY, inCTX, "#FF0000" );
 		drawString( "]", inX + 1 * drawScale, inY, inCTX  );
 	}
-	// else skip drawing
+	else {
+		// else skip drawing
+		if( lastWasDraw ) {
+			// schedule redraw to keep cursor flashing
+			lastWasDraw = false;
+			timedRedraw( flashMS );
+		}
 	}
+}
 
 
 function longLineSplitter( inString, maxLength ){
@@ -145,8 +168,21 @@ function addLineToBuffer( inString, inColor ) {
 
 
 
+function redrawNow() {
+	window.requestAnimationFrame(drawFrame);
+}
 
-window.requestAnimationFrame(drawFrame);
+
+
+
+function timedRedraw( inMSFromNow ) {
+	setTimeout( redrawNow, inMSFromNow );
+}
+
+
+
+
+redrawNow();
 window.addEventListener( "keypress", doKeyPress, false );
 window.addEventListener( "keydown", doKeyDown, false );
 
@@ -170,7 +206,7 @@ function drawFrameContents( inCTX, inCanvas ) {
 	inCTX.fillRect( 0, 0, inCanvas.width, inCanvas.height );
 
 	if( ! fontLoaded || ! scanLinesLoaded ) {
-		window.requestAnimationFrame( drawFrame );
+		redrawNow();
 		return;
 		}
 
@@ -223,7 +259,9 @@ function drawFrameContents( inCTX, inCanvas ) {
 	if( linesToAdd.length > 0 && 
 	  ( getMSTime() - charPrintingStartTime ) > charPrintingStepMS ) {
 		charPrintingStartTime = getMSTime();
-		
+
+		timedRedraw( charPrintingStepMS );
+
 		if( linesToAddProgress[0] == 0 ) {
 			lineBuffer.push( linesToAdd[0].substring( 0, 1 ) );
 			lineBufferColor.push( linesToAddColor[0] );
@@ -256,7 +294,6 @@ function drawFrameContents( inCTX, inCanvas ) {
 						 scanLinesImg.height * drawScale );
 		scanLinesCoverTotal += scanLinesCover;
 	}
-	window.requestAnimationFrame( drawFrame );
 }
 
 
@@ -265,12 +302,12 @@ function drawFrameContents( inCTX, inCanvas ) {
 function doKeyPress( e ) {
 	if( e.keyCode >= 32 && e.keyCode < 126 ) {
 		e.preventDefault();
-		cursorFlashStartTime = getMSTime();
+		resetCursorFlash();
 		c = String.fromCharCode( e.keyCode );
 		liveTypedCommand = liveTypedCommand.concat( c );
 	}
 	else if( e.keyCode == 13 ) {
-		cursorFlashStartTime = getMSTime();
+		resetCursorFlash();
 
 		isExport = false;
 		if( liveTypedCommand == "export" ) {
@@ -288,7 +325,8 @@ function doKeyPress( e ) {
 		if( isExport ) {
 			exportAll();
 		}
-	}		
+	}
+	redrawNow();
 }
 
 
@@ -310,12 +348,13 @@ function exportAll() {
 function doKeyDown( e ) {
 	if( e.keyCode == 8 ) {
 		e.preventDefault();
-		cursorFlashStartTime = getMSTime();
+		resetCursorFlash();
 		if( liveTypedCommand.length > 0 ) {
 			liveTypedCommand = 
 				liveTypedCommand.substring( 0, liveTypedCommand.length - 1 );
 		}
 	}
+	redrawNow();
 }
 
 
@@ -326,7 +365,7 @@ window.addEventListener( 'paste', (event) => {
 		( event.clipboardData || window.clipboardData ).getData('text');
 	
 	if( paste != "" ) {
-		cursorFlashStartTime = getMSTime();
+		resetCursorFlash();
 		liveTypedCommand = liveTypedCommand.concat( paste );
 	}
 } );
