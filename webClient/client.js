@@ -46,6 +46,7 @@ function reportWindowSize() {
 
 
 window.onresize = reportWindowSize;
+window.onfocus = reportWindowSize;
 
 // do one resize call at start
 reportWindowSize();
