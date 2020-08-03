@@ -62,22 +62,36 @@ var scanLinesLoaded = false;
 var vignetteLoaded = false;
 
 function drawString( inString, inX, inY, inCTX,
-					 inColor = "#FFFFFF" ) {
+					 inColor = "#FFFFFF", inCorruptionFlags = [] ) {
 	if( ! getFontLoaded() ) {
 		return;
 	}
 	
 	font = getColoredFont( inColor );
+	
+	corruptionFont = font;
+	if( inCorruptionFlags.length > 0 ) {
+		corruptionFont = getColoredFont( inColor, 1 );
+	}
 
+	drawIndex = 0;
 	a = Array.from( inString );
 	x = inX;
 	a.forEach(
 		function( c ) {
 			i = c.charCodeAt( 0 );
+			
 			f = font[ i ];
+			
+			if( false && inCorruptionFlags.length > drawIndex ) {
+				if( inCorruptionFlags[drawIndex] ) {
+					f = corruptionFont[ i ];
+				}
+			}
 			inCTX.drawImage( f, x, inY, 
 							 f.width * drawScale, f.height * drawScale );
 			x += fontSpacingH;
+			drawIndex ++;
 		}
 	);
 }
@@ -145,16 +159,19 @@ function longLineSplitter( inString, maxLength ){
 var lineBuffer = [];
 var lineBufferColor = [];
 
+var lineBufferCorruptionFlags = [];
+
+
 var linesToAdd = [];
 
 var linesToAddProgress = [];
 
 var linesToAddColor = [];
-
+var linesToAddCorruptionFlags = [];
 
 var liveTypedCommand = "";
 
-function addLineToBuffer( inString, inColor ) {
+function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0 ) {
 	charsWide = canvas.width / fontSpacingH - 1;
 	newLines = longLineSplitter( inString, charsWide );
 	linesToAdd = linesToAdd.concat( newLines );
@@ -163,6 +180,16 @@ function addLineToBuffer( inString, inColor ) {
 		function( line ) {
 			linesToAddProgress.push( 0 );
 			linesToAddColor.push( inColor );
+			corruptionFlags = [];
+			for( i =0; i<line.length; i++ ) {
+				if( Math.random() < inCorruptionChance ) {
+					corruptionFlags.push( true );
+					}
+				else {
+					corruptionFlags.push( false );
+				}
+			}
+			linesToAddCorruptionFlags.push( corruptionFlags );
 		}
 	);
 }
@@ -265,7 +292,8 @@ function drawFrameContents( inCTX, inCanvas ) {
 	drawY -= fontSpacingV;
 
 	for (var i = lineBuffer.length - 1; i >= linesToSkip; i--) {
-		drawString( lineBuffer[i], 10, drawY, inCTX, lineBufferColor[i] );
+		drawString( lineBuffer[i], 10, drawY, inCTX, lineBufferColor[i],
+					lineBufferCorruptionFlags[i] );
 		drawY -= fontSpacingV;
 	}
 
@@ -279,6 +307,7 @@ function drawFrameContents( inCTX, inCanvas ) {
 		if( linesToAddProgress[0] == 0 ) {
 			lineBuffer.push( linesToAdd[0].substring( 0, 1 ) );
 			lineBufferColor.push( linesToAddColor[0] );
+			lineBufferCorruptionFlags.push( linesToAddCorruptionFlags[0] );
 			linesToAddProgress[0] ++;
 			if( scrollUp > 0 ) {
 				// keep scroll position locked as more text is added
@@ -297,6 +326,7 @@ function drawFrameContents( inCTX, inCanvas ) {
 				linesToAdd.shift();
 				linesToAddProgress.shift();
 				linesToAddColor.shift();
+				linesToAddCorruptionFlags.shift();
 			}
 		}
 	}
