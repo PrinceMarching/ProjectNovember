@@ -193,7 +193,7 @@ var stringToDraw = "Hey there, punk!";
 var stringToDrawProgress = 0;
 
 var charPrintingStartTime = 0;
-var charPrintingStepMS = 50;
+var charPrintingStepMS = 25;
 
 
 
@@ -201,6 +201,17 @@ function drawFrame() {
 	drawFrameContents( ctx, canvas );
 }
 
+
+
+function splitCommandLines( inCanvas ) {
+	commandLines = longLineSplitter( liveTypedCommand, 
+									 inCanvas.width / fontSpacingH - 3 );
+	return commandLines;
+}
+
+
+
+var scrollUp = 0;
 
 
 function drawFrameContents( inCTX, inCanvas ) {
@@ -217,16 +228,17 @@ function drawFrameContents( inCTX, inCanvas ) {
 	// leave room for live command at bottom
 	linesToShow - 1;
 	
-	linesToSkip = lineBuffer.length - linesToShow;
+	linesToSkip = ( lineBuffer.length - linesToShow ) - scrollUp;
 	if( linesToSkip < 0 ) {
 		linesToSkip = 0;
 	}
 
-	commandLines = longLineSplitter( liveTypedCommand, 
-									 inCanvas.width / fontSpacingH - 3 );
+	commandLines = splitCommandLines( inCanvas );
 	
 
 	drawY = inCanvas.height - 2 * fontSpacingV;
+	
+	drawY += scrollUp * fontSpacingV;
 
 	if( commandLines.length > 1 ) {
 		drawY -= fontSpacingV * ( commandLines.length - 1 );
@@ -268,6 +280,11 @@ function drawFrameContents( inCTX, inCanvas ) {
 			lineBuffer.push( linesToAdd[0].substring( 0, 1 ) );
 			lineBufferColor.push( linesToAddColor[0] );
 			linesToAddProgress[0] ++;
+			if( scrollUp > 0 ) {
+				// keep scroll position locked as more text is added
+				// so what user is looking at remains stable.
+				scrollUp ++;
+			}
 		}
 		else {
 			addIndex = lineBuffer.length - 1;
@@ -316,12 +333,14 @@ function drawFrameContents( inCTX, inCanvas ) {
 
 function doKeyPress( e ) {
 	if( e.keyCode >= 32 && e.keyCode < 126 ) {
+		scrollUp = 0;
 		e.preventDefault();
 		resetCursorFlash();
 		c = String.fromCharCode( e.keyCode );
 		liveTypedCommand = liveTypedCommand.concat( c );
 	}
 	else if( e.keyCode == 13 ) {
+		scrollUp = 0;
 		resetCursorFlash();
 
 		isExport = false;
@@ -362,11 +381,56 @@ function exportAll() {
 
 function doKeyDown( e ) {
 	if( e.keyCode == 8 ) {
+		scrollUp = 0;
 		e.preventDefault();
 		resetCursorFlash();
 		if( liveTypedCommand.length > 0 ) {
 			liveTypedCommand = 
 				liveTypedCommand.substring( 0, liveTypedCommand.length - 1 );
+		}
+	}
+	else if( e.keyCode == 38 ||
+		   e.keyCode == 33 ) {
+		
+		// allow one blank line at very top.
+		visibleLines = canvas.height / fontSpacingV - 2;
+		
+
+		if( e.keyCode == 38 ) {
+			// up arrow
+			scrollUp ++;
+		}
+		else {
+			// page up
+			scrollUp += visibleLines;
+			}
+		
+		
+		commandLines = splitCommandLines( canvas );
+
+		numCommandLines = commandLines.length;
+
+		if( scrollUp > lineBuffer.length + numCommandLines - visibleLines ) {
+			scrollUp = lineBuffer.length + numCommandLines - visibleLines;
+			if( scrollUp < 0 ) {
+				scrollUp = 0;
+			}
+		}
+	}
+	else if( e.keyCode == 40 || e.keyCode == 34 ) {
+		
+		if( e.keyCode == 40 ) {
+			// down arrow
+			scrollUp --;
+		}
+		else {
+			// allow one blank line at very top.
+			visibleLines = canvas.height / fontSpacingV - 2;
+			scrollUp -= visibleLines;
+		}
+
+		if( scrollUp < 0 ) {
+			scrollUp = 0;
 		}
 	}
 	redrawNow();
