@@ -161,6 +161,9 @@ else if( $action == "edit_page" ) {
 else if( $action == "update_page" ) {
     pn_updatePage();
     }
+else if( $action == "delete_page" ) {
+    pn_deletePage();
+    }
 else if( $action == "logout" ) {
     pn_logout();
     }
@@ -583,6 +586,39 @@ function pn_updatePage() {
 
 
 
+function pn_deletePage() {
+    pn_checkPassword( "delete_page" );
+
+    pn_showLinkHeader();
+
+    global $tableNamePrefix;
+    
+    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+
+    if( $name == "" ) {
+        echo "Bad page name.";
+        return;
+        }
+    $confirm = pn_requestFilter( "confirm", "/[0-1]/", "0" );
+
+    if( $confirm == 0 ) {
+        echo "Confirmation box not checked.";
+        return;
+        }
+
+    $query = "DELETE FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$name';";
+
+
+    $result = pn_queryDatabase( $query );
+
+
+    echo "Page <b>$name</b> deleted.";
+    }
+
+
+
+
 
 
 
@@ -999,6 +1035,16 @@ function pn_editPage( ) {
                     "action=new_page&name=$n'>$n</a><br><br>";
                 }
             }
+?>
+        <hr>
+        <FORM ACTION="server.php" METHOD="post">
+        <INPUT TYPE="hidden" NAME="action" VALUE="delete_page">
+        <INPUT TYPE="hidden" NAME="name" VALUE="<?php echo $name;?>">
+    <INPUT TYPE="checkbox" NAME="confirm" VALUE=1> Confirm<br>      
+    <INPUT TYPE="Submit" VALUE="Delete Page">
+    </FORM>
+<?php
+        
         }
     else {
         echo "Page not found";
