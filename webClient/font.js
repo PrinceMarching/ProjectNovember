@@ -14,16 +14,12 @@ var fontImgs = [];
 fontIndex = 0;
 fontPaths.forEach(
 	function( path ) {
-		im = new Image();
+		var im = new Image();
 		im.fontIndex = fontIndex;
-		console.log( im.fontIndex );
 		fontIndex++;
 		im.onload = function() {
 			fontEachLoaded[ im.fontIndex ] = true;
-			console.log( path.concat( " is loaded" ) );
 			
-			// FIXME:  why is this not different per image?
-			console.log( im.fontIndex );
 			// check if they're all loaded now, and set main flag
 			fontLoaded = true;
 			fontEachLoaded.forEach( 
@@ -33,7 +29,6 @@ fontPaths.forEach(
 					}
 				}
 			)
-			console.log( "ind = ".concat( im.fontIndex ).concat( " fontLoaded = ".concat( fontLoaded ) ) );
 		};
 		im.src = path;
 		fontImgs.push( im );
@@ -63,7 +58,6 @@ function getColoredFont( inColor, inFontNumber = 0 ) {
 			}
 		}
 	}
-	console.log( "Got font ".concat( inFontNumber ).concat( " of color " ).concat( inColor ) );
 	return fontArray[inFontNumber][ inColor ];
 }
 

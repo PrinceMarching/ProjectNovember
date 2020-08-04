@@ -67,23 +67,23 @@ function drawString( inString, inX, inY, inCTX,
 		return;
 	}
 	
-	font = getColoredFont( inColor );
+	var font = getColoredFont( inColor );
 	
-	corruptionFont = font;
+	var corruptionFont = font;
 	if( inCorruptionFlags.length > 0 ) {
 		corruptionFont = getColoredFont( inColor, 1 );
 	}
 
-	drawIndex = 0;
-	a = Array.from( inString );
-	x = inX;
+	var drawIndex = 0;
+	var a = Array.from( inString );
+	var x = inX;
 	a.forEach(
 		function( c ) {
-			i = c.charCodeAt( 0 );
+			var i = c.charCodeAt( 0 );
 			
-			f = font[ i ];
+			var f = font[ i ];
 			
-			if( false && inCorruptionFlags.length > drawIndex ) {
+			if( inCorruptionFlags.length > drawIndex ) {
 				if( inCorruptionFlags[drawIndex] ) {
 					f = corruptionFont[ i ];
 				}
@@ -180,7 +180,7 @@ function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0 ) {
 		function( line ) {
 			linesToAddProgress.push( 0 );
 			linesToAddColor.push( inColor );
-			corruptionFlags = [];
+			var corruptionFlags = [];
 			for( i =0; i<line.length; i++ ) {
 				if( Math.random() < inCorruptionChance ) {
 					corruptionFlags.push( true );
