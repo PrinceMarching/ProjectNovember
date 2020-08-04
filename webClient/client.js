@@ -171,23 +171,29 @@ var linesToAddCorruptionFlags = [];
 
 var liveTypedCommand = "";
 
-function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0 ) {
-	charsWide = canvas.width / fontSpacingH - 1;
-	newLines = longLineSplitter( inString, charsWide );
+function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0,
+						  inCorruptionSkip = 0 ) {
+	
+	var charsWide = canvas.width / fontSpacingH - 1;
+	var newLines = longLineSplitter( inString, charsWide );
 	linesToAdd = linesToAdd.concat( newLines );
-
+	
+	var charsAdded = 0;
+	
 	newLines.forEach(
 		function( line ) {
 			linesToAddProgress.push( 0 );
 			linesToAddColor.push( inColor );
 			var corruptionFlags = [];
 			for( i =0; i<line.length; i++ ) {
-				if( Math.random() < inCorruptionChance ) {
+				if( charsAdded >= inCorruptionSkip && 
+					Math.random() < inCorruptionChance ) {
 					corruptionFlags.push( true );
 					}
 				else {
 					corruptionFlags.push( false );
 				}
+				charsAdded++;
 			}
 			linesToAddCorruptionFlags.push( corruptionFlags );
 		}
@@ -282,7 +288,7 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 	
 	if( inIsExport ) {
 		//center vertically a bit
-		drawY -= fontSpacingV / 2;
+		drawY -= fontSpacingV / 2.5;
 	}
 	else if( ! inIsExport ) {
 		// hide prompt and what user is typing down at bottom during export
@@ -387,6 +393,8 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 
 
 
+var currentCorruption = 0;
+
 
 function doKeyPress( e ) {
 	if( e.keyCode >= 32 && e.keyCode <= 126 ) {
@@ -400,14 +408,24 @@ function doKeyPress( e ) {
 		scrollUp = 0;
 		resetCursorFlash();
 
-		isExport = false;
-		isClear = false;
+		
 		var lowerCommand = liveTypedCommand.toLowerCase();
+		
 		if( lowerCommand == "export" ) {
-			isExport = true;
+			exportAll();
 		}
 		else if( lowerCommand == "clear" ) {
-			isClear = true;
+			clearLineBuffers();
+		}
+		else if( lowerCommand.startsWith( "corruption=" ) ) {
+			var c = parseInt( lowerCommand.split( "=" )[1] );
+			if( c >= 0 && c <= 10 ) {
+				currentCorruption = c / 10;
+				addLineToBuffer( 
+					"--:CORRUPTION LEVEL ".
+						concat( c ).concat( ":--" ), 
+					"#FF0000", 0 );
+			}
 		}
 		else {
 
@@ -415,25 +433,25 @@ function doKeyPress( e ) {
 			randomColor = "#".concat( randomColor );
 			
 			var lineColor = randomColor;
-			
+
+			var c = currentCorruption;
+			var cSkip = 0;
+
 			if( liveTypedCommand.startsWith( "Human:" ) ) {
 				lineColor = "#88FF88";
-				}
+				c = 0;
+			}
 			else if( liveTypedCommand.startsWith( "Computer:" ) ) {
 				lineColor = "#FF8888";
-				}
-			addLineToBuffer( liveTypedCommand, lineColor );
+				cSkip = 9;
+			}
+			
+			addLineToBuffer( liveTypedCommand, lineColor, c, cSkip );
+			
 			playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
 									 charPrintingStepMS );
-			}
-		liveTypedCommand = "";
-		
-		if( isExport ) {
-			exportAll();
 		}
-		else if( isClear ) {
-			clearLineBuffers();
-		}
+		liveTypedCommand = "";		
 	}
 	redrawNow();
 }
