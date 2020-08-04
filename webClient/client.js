@@ -414,7 +414,17 @@ function doKeyPress( e ) {
 		else {
 
 			var randomColor = Math.floor(Math.random()*16777215).toString(16);
-			addLineToBuffer( liveTypedCommand, "#".concat( randomColor ) );
+			randomColor = "#".concat( randomColor );
+			
+			var lineColor = randomColor;
+			
+			if( liveTypedCommand.startsWith( "Human:" ) ) {
+				lineColor = "#88FF88";
+				}
+			else if( liveTypedCommand.startsWith( "Computer:" ) ) {
+				lineColor = "#FF8888";
+				}
+			addLineToBuffer( liveTypedCommand, lineColor );
 			playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
 									 charPrintingStepMS );
 			}
