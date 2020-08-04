@@ -523,6 +523,7 @@ window.addEventListener( 'paste', (event) => {
 	if( paste != "" ) {
 		resetCursorFlash();
 		liveTypedCommand = liveTypedCommand.concat( paste );
+		redrawNow();
 	}
 } );
 
