@@ -145,16 +145,21 @@ function longLineSplitter( inString, maxLength ){
     while( inString.length > maxLength ) {
         var pos = inString.substring( 0, maxLength).lastIndexOf(' ');
         pos = pos <= 0 ? maxLength : pos;
-        strs.push( inString.substring( 0, pos ) );
+		// leave trailing space at end
+        strs.push( inString.substring( 0, pos + 1 ) );
         var i = inString.indexOf( ' ', pos ) + 1;
         if( i < pos || i > pos + maxLength )
             i = pos;
         inString = inString.substring( i );
     }
-    strs.push( inString);
+    strs.push( inString );
     return strs;
 }
 
+
+// original lines as added, without wrapping applied
+// used for text export
+var origLineBuffer = [];
 
 var lineBuffer = [];
 var lineBufferColor = [];
@@ -174,6 +179,8 @@ var liveTypedCommand = "";
 function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0,
 						  inCorruptionSkip = 0 ) {
 	
+	var origStringArray = inString.split( "" );
+	
 	var charsWide = canvas.width / fontSpacingH - 1;
 	var newLines = longLineSplitter( inString, charsWide );
 	linesToAdd = linesToAdd.concat( newLines );
@@ -186,10 +193,15 @@ function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0,
 			linesToAddColor.push( inColor );
 			var corruptionFlags = [];
 			for( i =0; i<line.length; i++ ) {
-				if( charsAdded >= inCorruptionSkip && 
+				// never corrupt spaces
+				if( inCorruptionChance > 0 && 
+					charsAdded >= inCorruptionSkip && 
+					origStringArray[ charsAdded ] != ' ' &&
 					Math.random() < inCorruptionChance ) {
+					
 					corruptionFlags.push( true );
-					}
+					origStringArray[ charsAdded ] = '#';
+				}
 				else {
 					corruptionFlags.push( false );
 				}
@@ -198,11 +210,15 @@ function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0,
 			linesToAddCorruptionFlags.push( corruptionFlags );
 		}
 	);
+	
+	origLineBuffer.push( origStringArray.join( "" ) );
 }
 
 
 
 function clearLineBuffers() {
+	origLineBuffer = [];
+
 	lineBuffer = [];
 	lineBufferColor = [];
 	
@@ -468,6 +484,13 @@ function exportAll() {
 	drawFrameContents( ctxSub, canvasSub, true );
 	url = canvasSub.toDataURL( "image/png" );
 	window.open( url, '_blank');
+
+
+	// now export raw text
+	stringToEncode = origLineBuffer.join( "\n\n" );
+	b64 = btoa( stringToEncode );
+	textURL = "data:text/plain;base64,".concat( b64 );
+	window.open( textURL, '_blank');
 }
 
 
