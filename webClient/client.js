@@ -196,6 +196,23 @@ function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0 ) {
 
 
 
+function clearLineBuffers() {
+	lineBuffer = [];
+	lineBufferColor = [];
+	
+	lineBufferCorruptionFlags = [];
+	
+	
+	linesToAdd = [];
+	
+	linesToAddProgress = [];
+	
+	linesToAddColor = [];
+	linesToAddCorruptionFlags = [];
+}
+
+
+
 
 function redrawNow() {
 	window.requestAnimationFrame(drawFrame);
@@ -241,7 +258,7 @@ function splitCommandLines( inCanvas ) {
 var scrollUp = 0;
 
 
-function drawFrameContents( inCTX, inCanvas ) {
+function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 	inCTX.fillStyle = '#000';
 	inCTX.fillRect( 0, 0, inCanvas.width, inCanvas.height );
 
@@ -260,34 +277,46 @@ function drawFrameContents( inCTX, inCanvas ) {
 		linesToSkip = 0;
 	}
 
-	commandLines = splitCommandLines( inCanvas );
-	
 
-	drawY = inCanvas.height - 2 * fontSpacingV;
+	drawY = inCanvas.height;
 	
-	drawY += scrollUp * fontSpacingV;
-
-	if( commandLines.length > 1 ) {
-		drawY -= fontSpacingV * ( commandLines.length - 1 );
+	if( inIsExport ) {
+		//center vertically a bit
+		drawY -= fontSpacingV / 2;
 	}
-	drawString( ">", 10, drawY, inCTX, "#FFFF00" );
-	
-	lineY = drawY;
-	lineI = 0;
-	
-	commandLines.forEach(
-		function( line ) {
-			drawString( line, 10 + fontSpacingH, lineY, inCTX, "#FFFF00" );
-			if( lineI == commandLines.length - 1 ) {
-				// last line of current command
-				// put cursor at end
-				drawCursor( 10 + fontSpacingH + fontSpacingH *
-							line.length, lineY, inCTX ); 
-			}
-			lineI ++;
-			lineY += fontSpacingV;
+	else if( ! inIsExport ) {
+		// hide prompt and what user is typing down at bottom during export
+		
+		commandLines = splitCommandLines( inCanvas );
+
+		drawY = inCanvas.height - 2 * fontSpacingV;
+		
+		
+		
+		drawY += scrollUp * fontSpacingV;
+		
+		if( commandLines.length > 1 ) {
+			drawY -= fontSpacingV * ( commandLines.length - 1 );
 		}
-	);
+		drawString( ">", 10, drawY, inCTX, "#FFFF00" );
+		
+		lineY = drawY;
+		lineI = 0;
+		
+		commandLines.forEach(
+			function( line ) {
+				drawString( line, 10 + fontSpacingH, lineY, inCTX, "#FFFF00" );
+				if( lineI == commandLines.length - 1 ) {
+					// last line of current command
+					// put cursor at end
+					drawCursor( 10 + fontSpacingH + fontSpacingH *
+								line.length, lineY, inCTX ); 
+				}
+				lineI ++;
+				lineY += fontSpacingV;
+			}
+		);
+	}
 	
 	drawY -= fontSpacingV;
 
@@ -374,8 +403,13 @@ function doKeyPress( e ) {
 		resetCursorFlash();
 
 		isExport = false;
-		if( liveTypedCommand == "export" ) {
+		isClear = false;
+		var lowerCommand = liveTypedCommand.toLowerCase();
+		if( lowerCommand == "export" ) {
 			isExport = true;
+		}
+		else if( lowerCommand == "clear" ) {
+			isClear = true;
 		}
 		else {
 
@@ -389,6 +423,9 @@ function doKeyPress( e ) {
 		if( isExport ) {
 			exportAll();
 		}
+		else if( isClear ) {
+			clearLineBuffers();
+		}
 	}
 	redrawNow();
 }
@@ -400,9 +437,9 @@ function exportAll() {
     ctxSub = canvasSub.getContext( '2d' );
 
     canvasSub.width = canvas.width;
-    canvasSub.height = fontSpacingV * ( lineBuffer.length + 3 );
+    canvasSub.height = fontSpacingV * ( lineBuffer.length + 1 );
 
-	drawFrameContents( ctxSub, canvasSub );
+	drawFrameContents( ctxSub, canvasSub, true );
 	url = canvasSub.toDataURL( "image/png" );
 	window.open( url, '_blank');
 }
