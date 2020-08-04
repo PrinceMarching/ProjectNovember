@@ -126,8 +126,8 @@ function drawCursor( inX, inY, inCTX ) {
 			lastWasDraw = true;
 			timedRedraw( flashMS );
 		}
-		drawString( "]", inX - 4 * drawScale, inY, inCTX, "#FF0000" );
-		drawString( "]", inX + 1 * drawScale, inY, inCTX  );
+		drawString( "|", inX - 4 * drawScale, inY, inCTX, "#FFFF00" );
+		drawString( "|", inX + 1 * drawScale, inY, inCTX, "#FFFF00" );
 	}
 	else {
 		// else skip drawing
