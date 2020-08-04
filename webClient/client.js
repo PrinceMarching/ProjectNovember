@@ -391,7 +391,7 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 
 
 function doKeyPress( e ) {
-	if( e.keyCode >= 32 && e.keyCode < 126 ) {
+	if( e.keyCode >= 32 && e.keyCode <= 126 ) {
 		scrollUp = 0;
 		e.preventDefault();
 		resetCursorFlash();
