@@ -137,6 +137,9 @@ else if( $action == "show_log" ) {
 else if( $action == "clear_log" ) {
     pn_clearLog();
     }
+else if( $action == "add_user" ) {
+    pn_addUser();
+    }
 else if( $action == "show_data" ) {
     pn_showData();
     }
@@ -176,6 +179,7 @@ else if( preg_match( "/server\.php/", $_SERVER[ "SCRIPT_NAME" ] ) ) {
     
     // check if our tables exist
     $exists =
+        pn_doesTableExist( $tableNamePrefix . "random_nouns" ) &&
         pn_doesTableExist( $tableNamePrefix . "users" ) &&
         pn_doesTableExist( $tableNamePrefix . "pages" ) &&
         pn_doesTableExist( $tableNamePrefix . "log" );
@@ -242,6 +246,60 @@ function pn_setupDatabase() {
         echo "<B>$tableName</B> table already exists<BR>";
         }
 
+
+    // these words taken from a cognitive experiment database
+    // http://www.datavis.ca/online/paivio/
+    // Now moved here:
+    // http://euclid.psych.yorku.ca/shiny/Paivio/
+
+    $tableName = $tableNamePrefix . "random_nouns";
+    if( ! pn_doesTableExist( $tableName ) ) {
+
+        // a source list of character last names
+        // cumulative count is number of people in 1993 population
+        // who have this name or a more common name
+        // less common names have higher cumulative counts
+        $query =
+            "CREATE TABLE $tableName( " .
+            "id SMALLINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, ".
+            "noun VARCHAR(14) NOT NULL, ".
+            "UNIQUE KEY( noun ) );";
+
+        $result = pn_queryDatabase( $query );
+
+        echo "<B>$tableName</B> table created<BR>";
+
+
+        if( $file = fopen( "randomNouns.txt", "r" ) ) {
+            $firstLine = true;
+
+            $query = "INSERT INTO $tableName (noun) VALUES ";
+            /*
+			( 'bird' ),
+            ( 'monster' ),
+            ( 'ability' );
+            */
+
+            while( !feof( $file ) ) {
+                $noun = trim( fgets( $file) );
+                
+                if( ! $firstLine ) {
+                    $query = $query . ",";
+                    }
+                
+                $query = $query . " ( '$noun' )";
+            
+                $firstLine = false;
+                }
+            
+            fclose( $file );
+
+            $query = $query . ";";
+            
+            $result = pn_queryDatabase( $query );
+            }
+        }
+    
     
     
     $tableName = $tableNamePrefix . "users";
@@ -252,6 +310,9 @@ function pn_setupDatabase() {
             "id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT," .
             "email VARCHAR(254) NOT NULL," .
             "UNIQUE KEY( email ), ".
+            // separated by spaces
+            "pass_words VARCHAR(254) NOT NULL," .
+            "current_page VARCHAR(254) NOT NULL," .
             // for use with client connections
             "client_sequence_number INT NOT NULL );";
 
@@ -385,6 +446,40 @@ function pn_clearLog() {
         }
     else {
         echo "DELETE operation failed?";
+        }
+    }
+
+
+
+
+function pn_addUser() {
+    pn_checkPassword( "add_user" );
+
+    echo "[<a href=\"server.php?action=show_data" .
+        "\">Main</a>]<br><br><br>";
+    
+    global $tableNamePrefix;
+    
+    $email = pn_requestFilter( "email", "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i", "" );
+
+    if( $email == "" ) {
+        echo "Bad email.";
+        return;
+        }
+
+    $pass_words = pn_generateRandomPasswordSequence();
+    
+
+    $query = "INSERT INTO $tableNamePrefix"."users ".
+        "SET email = '$email', pass_words = '$pass_words', current_page = '';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    if( $result ) {
+        echo "User created with passwords <b>$pass_words</b>";
+        }
+    else {
+        echo "User creation failed";
         }
     }
 
@@ -557,12 +652,16 @@ function pn_showData( $checkPassword = true ) {
     echo "<tr>\n";    
     echo "<tr><td>".orderLink( "id", "ID" )."</td>\n";
     echo "<td>".orderLink( "email", "Email" )."</td>\n";
+    echo "<td>".orderLink( "pass_words", "Pass Words" )."</td>\n";
+    echo "<td>".orderLink( "current_page", "Current Page" )."</td>\n";
     echo "</tr>\n";
 
 
     for( $i=0; $i<$numRows; $i++ ) {
         $id = pn_mysqli_result( $result, $i, "id" );
         $email = pn_mysqli_result( $result, $i, "email" );
+        $pass_words = pn_mysqli_result( $result, $i, "pass_words" );
+        $current_page = pn_mysqli_result( $result, $i, "current_page" );
 
         $encodedEmail = urlencode( $email );
 
@@ -573,25 +672,32 @@ function pn_showData( $checkPassword = true ) {
         echo "<td>".
             "<a href=\"server.php?action=show_detail&email=$encodedEmail\">".
             "$email</a></td>\n";
+        echo "<td>$pass_words</td>\n";
+        echo "<td>$current_page</td>\n";
         echo "</tr>\n";
         }
     echo "</table>";
 
 
+
     echo "<hr>";
 
-    global $startingScore;
-?>
-    <FORM ACTION="server.php" METHOD="post">
-         New Score: 
-    <INPUT TYPE="hidden" NAME="action" VALUE="reset_scores">
-    <INPUT TYPE="text" MAXLENGTH=10 SIZE=5 NAME="target_score"
-           VALUE="<?php echo $startingScore;?>">
 
-    <INPUT TYPE="checkbox" NAME="confirm" VALUE=1> Confirm  
-    <INPUT TYPE="Submit" VALUE="Reset All Scores">
+    // form for force-creating a new user
+?>
+        <td>
+        Create new User:<br>
+            <FORM ACTION="server.php" METHOD="post">
+    <INPUT TYPE="hidden" NAME="action" VALUE="add_user">
+             Email:
+    <INPUT TYPE="text" MAXLENGTH=80 SIZE=20 NAME="email"><br>
+    <INPUT TYPE="Submit" VALUE="Create">
     </FORM>
+        </td>
 <?php
+
+
+    
 
     echo "<hr>";
          
@@ -711,6 +817,23 @@ function pn_getClientSequenceNumberForEmail( $inEmail ) {
 
 
 
+function pn_getPassWordsForEmail( $inEmail ) {
+    global $tableNamePrefix;
+    
+    $query = "SELECT pass_words FROM $tableNamePrefix"."users ".
+        "WHERE email = '$inEmail';";
+    $result = pn_queryDatabase( $query );
+
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows < 1 ) {
+        return "";
+        }
+    else {
+        return pn_mysqli_result( $result, 0, "pass_words" );
+        }
+    }
+
 
 
 
@@ -756,25 +879,14 @@ function pn_checkClientSeqHash( $email ) {
 
     $correct = false;
 
-    $encodedEmail = urlencode( $email );
+    $pass_words = pn_getPassWordsForEmail( $email );
+
+    $computedHashValue =
+        strtoupper( pn_hmac_sha1( $pass_words, $sequence_number ) );
 
     
-    global $ticketServerURL;
-    $url = "$ticketServerURL".
-        "?action=check_ticket_hash".
-        "&email=$encodedEmail".
-        "&hash_value=$hash_value".
-        "&string_to_hash=$sequence_number";
-
     
-    $result = trim( file_get_contents( $url ) );
-            
-    if( $result == "VALID" ) {
-        $correct = true;
-        }
-
-    
-    if( ! $correct ) {
+    if( $computedHashValue != $hash_value ) {
         pn_log( "checkClientSeqHash denied, hash check failed" );
 
         echo "DENIED";
@@ -812,6 +924,29 @@ function pn_checkAndUpdateClientSeqNumber() {
         }
     }
 
+
+
+function pn_generateRandomPasswordSequence() {
+    global $tableNamePrefix;
+
+    $foundUnique = false;
+    $tryCount = 0;
+
+    $name = "";
+
+    $numberOfWords = 4;
+
+    $query =
+        "SELECT GROUP_CONCAT( temp.noun SEPARATOR ' ' ) AS random_name ".
+        "FROM ( SELECT noun FROM $tableNamePrefix"."random_nouns ".
+        "       ORDER BY RAND() LIMIT $numberOfWords ) AS temp;";
+    
+    $result = pn_queryDatabase( $query );
+
+    $name = pn_mysqli_result( $result, 0, 0 );
+    
+    return $name;
+    }
 
 
 
