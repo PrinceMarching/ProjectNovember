@@ -146,6 +146,21 @@ else if( $action == "show_data" ) {
 else if( $action == "show_detail" ) {
     pn_showDetail();
     }
+else if( $action == "show_pages" ) {
+    pn_showPages();
+    }
+else if( $action == "add_page" ) {
+    pn_addPage();
+    }
+else if( $action == "new_page" ) {
+    pn_newPage();
+    }
+else if( $action == "edit_page" ) {
+    pn_editPage();
+    }
+else if( $action == "update_page" ) {
+    pn_updatePage();
+    }
 else if( $action == "logout" ) {
     pn_logout();
     }
@@ -351,8 +366,7 @@ function pn_setupDatabase() {
 function pn_showLog() {
     pn_checkPassword( "show_log" );
 
-    echo "[<a href=\"server.php?action=show_data" .
-        "\">Main</a>]<br><br><br>";
+    pn_showLinkHeader();
 
     $entriesPerPage = 1000;
     
@@ -433,9 +447,8 @@ function pn_showLog() {
 function pn_clearLog() {
     pn_checkPassword( "clear_log" );
 
-     echo "[<a href=\"server.php?action=show_data" .
-         "\">Main</a>]<br><br><br>";
-    
+    pn_showLinkHeader();
+
     global $tableNamePrefix;
 
     $query = "DELETE FROM $tableNamePrefix"."log;";
@@ -455,9 +468,8 @@ function pn_clearLog() {
 function pn_addUser() {
     pn_checkPassword( "add_user" );
 
-    echo "[<a href=\"server.php?action=show_data" .
-        "\">Main</a>]<br><br><br>";
-    
+    pn_showLinkHeader();
+
     global $tableNamePrefix;
     
     $email = pn_requestFilter( "email", "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i", "" );
@@ -472,15 +484,100 @@ function pn_addUser() {
 
     $query = "INSERT INTO $tableNamePrefix"."users ".
         "SET email = '$email', pass_words = '$pass_words', current_page = '';";
-    
-    $result = pn_queryDatabase( $query );
+
+
+    global $pn_mysqlLink;
+    // run query directly, so we can catch error
+    $result = mysqli_query( $pn_mysqlLink, $query );
     
     if( $result ) {
         echo "User created with passwords <b>$pass_words</b>";
         }
     else {
-        echo "User creation failed";
+        echo "User creation failed (duplicate email?)";
         }
+    }
+
+
+
+
+function pn_addPage() {
+    pn_checkPassword( "add_page" );
+
+    pn_showLinkHeader();
+
+    global $tableNamePrefix;
+    
+    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+
+    if( $name == "" ) {
+        echo "Bad page name.";
+        return;
+        }
+
+    // no filtering
+    $body = $_REQUEST[ $body ];
+    
+    global $pn_mysqlLink;
+    
+    $slashedBody = mysqli_real_escape_string( $pn_mysqlLink, $body );
+
+
+    $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,]+/i", "" );
+
+    $query = "INSERT INTO $tableNamePrefix"."pages ".
+        "SET name = '$name', display_text = '$slashedBody', ".
+        "dest_names = '$dest_names';";
+
+
+    global $pn_mysqlLink;
+    // run query directly, so we can catch error
+    $result = mysqli_query( $pn_mysqlLink, $query );
+    
+    if( $result ) {
+        echo "Page '$name' created";
+        }
+    else {
+        echo "Page creation failed (duplicate page name?)";
+        }
+    }
+
+
+
+
+function pn_updatePage() {
+    pn_checkPassword( "update_page" );
+
+    pn_showLinkHeader();
+
+    global $tableNamePrefix;
+    
+    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+
+    if( $name == "" ) {
+        echo "Bad page name.";
+        return;
+        }
+
+    // no filtering
+    $body = $body = $_REQUEST[ "body" ];
+    
+    global $pn_mysqlLink;
+    
+    $slashedBody = mysqli_real_escape_string( $pn_mysqlLink, $body );
+
+
+    $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,]+/i", "" );
+
+    $query = "UPDATE $tableNamePrefix"."pages ".
+        "SET display_text = '$slashedBody', ".
+        "dest_names = '$dest_names' WHERE name = '$name';";
+
+
+    $result = pn_queryDatabase( $query );
+
+
+    echo "Page <b>$name</b> updated.";
     }
 
 
@@ -512,6 +609,18 @@ function pn_logout() {
 
 
 
+function pn_showLinkHeader() {
+    
+    echo "<table width='100%' border=0><tr>".
+        "<td>[<a href=\"server.php?action=show_data" .
+        "\">Main</a>] [<a href=\"server.php?action=show_pages" .
+        "\">Pages</a>]</td>".
+        "<td align=right>[<a href=\"server.php?action=logout" .
+        "\">Logout</a>]</td>".
+        "</tr></table><br><br><br>";
+    }
+
+
 
 function pn_showData( $checkPassword = true ) {
     // these are global so they work in embeded function call below
@@ -524,13 +633,7 @@ function pn_showData( $checkPassword = true ) {
     global $tableNamePrefix, $remoteIP;
     
 
-    echo "<table width='100%' border=0><tr>".
-        "<td>[<a href=\"server.php?action=show_data" .
-            "\">Main</a>]</td>".
-        "<td align=right>[<a href=\"server.php?action=logout" .
-            "\">Logout</a>]</td>".
-        "</tr></table><br><br><br>";
-
+    pn_showLinkHeader();
 
 
 
@@ -719,9 +822,9 @@ function pn_showDetail( $checkPassword = true ) {
     if( $checkPassword ) {
         pn_checkPassword( "show_detail" );
         }
+
+    pn_showLinkHeader();
     
-    echo "[<a href=\"server.php?action=show_data" .
-         "\">Main</a>]<br><br><br>";
     
     global $tableNamePrefix;
     
@@ -771,6 +874,155 @@ function pn_showDetail( $checkPassword = true ) {
     }
 
 
+
+
+function pn_showPageForm( $action, $name, $nameHidden, $body, $dest_names,
+                          $buttonName ) {
+
+    $nameType = "text";
+    if( $nameHidden ) {
+        $nameType = "hidden";
+        }
+    
+?>
+    <FORM ACTION="server.php" METHOD="post">
+        <INPUT TYPE="hidden" NAME="action" VALUE="<?php echo $action;?>">
+        Name:
+    <INPUT TYPE="<?php echo $nameType;?>" MAXLENGTH=80 SIZE=20 NAME="name"
+        value='<?php echo $name;?>'><br>
+
+    <textarea name="body" rows="10" cols="35"><?php echo $body;?></textarea><br>
+         Dest pages:
+    <INPUT TYPE="text" MAXLENGTH=80 SIZE=40 NAME="dest_names"
+        value='<?php echo $dest_names;?>'><br>
+    <INPUT TYPE="Submit" VALUE="<?php echo $buttonName;?>">
+    </FORM>
+<?php
+    }
+
+
+
+
+function pn_showPages() {
+    pn_checkPassword( "show_pages" );
+    
+    pn_showLinkHeader();
+
+
+    // first, form for adding a new page
+
+    echo "Create new Page:<br>";
+    
+    pn_showPageForm( "add_page", "", false, "", "", "Create" );
+    
+
+         
+    
+    global $tableNamePrefix;
+
+    echo "<hr><br>Exising pages:<br><br>";
+    
+    
+    $query = "SELECT name ".
+            "FROM $tableNamePrefix"."pages;";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    for( $i=0; $i<$numRows; $i++ ) {
+        $name = pn_mysqli_result( $result, $i, "name" );
+
+        echo
+        "<a href='server.php?action=edit_page&name=$name'>$name</a><br><br>";
+        }
+    }
+
+
+
+function pn_newPage() {
+    pn_checkPassword( "new_page" );
+    
+    pn_showLinkHeader();
+    
+    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+
+    echo "Create new Page:<br>";
+    
+    pn_showPageForm( "add_page", "$name", false, "", "", "Create" );
+    }
+
+
+
+function pn_editPage( ) {
+    pn_checkPassword( "edit_page" );
+    
+    pn_showLinkHeader();
+    
+    
+    global $tableNamePrefix;
+    
+
+    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+
+
+
+    
+    $query = "SELECT display_text, dest_names ".
+            "FROM $tableNamePrefix"."pages WHERE name='$name';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+        echo "Editing page <b>$name</b>:<br><br>";
+
+        $dest_names = pn_mysqli_result( $result, 0, "dest_names" );
+        
+
+        pn_showPageForm( "update_page", "$name", true,
+                         pn_mysqli_result( $result, 0, "display_text" ),
+                         $dest_names,
+                         "Update" );
+
+
+        echo "<hr>Linked pages:<br><br>";
+        $destParts = preg_split( "/,/", $dest_names );
+        
+        foreach( $destParts as $n ) {
+            if( pn_pageExists( $n ) ) {
+                
+                echo "<a href='server.php?".
+                    "action=edit_page&name=$n'>$n</a><br><br>";
+                }
+            else {
+                echo "<a href='server.php?".
+                    "action=new_page&name=$n'>$n</a><br><br>";
+                }
+            }
+        }
+    else {
+        echo "Page not found";
+        }
+    }
+
+
+
+
+function pn_pageExists( $name ) {
+    global $tableNamePrefix;
+    $query = "SELECT name ".
+        "FROM $tableNamePrefix"."pages WHERE name='$name';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+        return true;
+        }
+    return false;
+    }
+
+    
 
 
 
