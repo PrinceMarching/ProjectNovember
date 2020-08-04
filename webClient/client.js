@@ -375,16 +375,14 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 		numScanlinesDrawn ++;
 	}
 	
-	if( numScanlinesDrawn <= 1 ) {
-		// single screen, not export
-		
-		ctx.globalAlpha = 0.50;
 
-		inCTX.drawImage( vignetteImg, 0, 0, 
-						 vignetteImg.width * drawScale,
-						 vignetteImg.height * drawScale );
-		ctx.globalAlpha = 1.0;
-	}
+	// stretch vignette to cover canvas vertically
+	inCTX.globalAlpha = 0.50;
+	
+	inCTX.drawImage( vignetteImg, 0, 0, 
+					 vignetteImg.width * drawScale,
+					 inCanvas.height );
+	inCTX.globalAlpha = 1.0;
 }
 
 
