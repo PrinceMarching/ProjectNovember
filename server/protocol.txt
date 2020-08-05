@@ -1,0 +1,165 @@
+Standard Server Response:
+-------------------------
+
+In various exchanges below, the server sends {{SERVER_STANDARD_RESPONSE}}
+
+The response itself defines what the next action can be from the client.
+
+The format of a {{SERVER_STANDARD_RESPONSE}} is as follows:
+
+response_action
+carried_param
+prompt_color
+typed_display_prefix
+typed_display_color
+clear_flag
+text_line
+text_line
+text_line
+...
+text_line
+
+
+Where:
+
+response_action       is the action parameter that the client can send its next
+                      server request.
+
+carried_param         is an opaque paramter S with no whitespace that the client
+                      should include as carried_param=S in its next request.
+
+prompt_color          is a hex color like #FF8800 for the interactive prompt, 
+                      live typing, and cursor presented to the user.
+
+typed_display_prefix  is enclosed in curly braces.  When user types a command
+                      and hits ENTER, the client will automatically add
+                      the typed text to the bottom of the buffer (before
+                      the server response is available).
+                      The client should prepend this prefix.
+                      Example:  {Human: }  (for when a human is talking to
+                      an AI.
+
+typed_display_color   is a hex color like #FF8800, which the client should
+                      use when adding the typed and entered text to the bottom
+                      of the buffer.
+
+clear_flag            0 or 1.  If 1, existing buffer of text should be cleared.
+
+
+text_line             each line is in the following format (with curly braces):
+
+{color}{ms_per_char_speed}{corruption_fraction}{corruption_skip_chars}text
+
+color                  is a hex color like #FF8800
+
+ms_per_char_speed      controls the sequential display speed of the line
+
+corruption_fraction    in range [0-1.0], fraction of line chars corrupted
+
+corruption_skip_chars  number of chars to skip in line before corruption starts
+
+
+
+
+Client Hash Values:
+-------------------
+
+For all client requests after get_client_sequence_number:
+
+hash_value is computed on both ends with:
+
+HMAC_SHA1( $pass_words, $string_to_hash )
+
+Where $pass_words has one space between words and is all lowercase.
+
+
+
+
+
+
+server.php
+?action=get_client_sequence_number
+&email=[email address]
+
+Return:
+sequence number
+OK
+
+Gets next valid sequence number associated with email, for client requests.  
+Note that even if email is unknown to server, 0 will be returned so that first
+request can be submitted.
+
+
+
+
+
+server.php
+?action=login
+&email=[email address]
+&sequence_number=[int]
+&hash_value=[hash value]
+
+Return:
+{{SERVER_STANDARD_RESPONSE}}
+-or-
+DENIED
+
+Used by clients to initiate interaction with server.
+
+DENIED is returned if the email isn't known or hash check fails
+
+
+
+
+
+server.php
+?action=login
+&email=[email address]
+&sequence_number=[int]
+&hash_value=[hash value]
+
+Return:
+{{SERVER_STANDARD_RESPONSE}}
+-or-
+DENIED
+
+Used by clients to initiate interaction with server.
+
+DENIED is returned if the email isn't known or hash check fails
+
+
+
+
+
+
+Client Standard Response:
+-------------------------
+
+After a {{SERVER_STANDARD_RESPONSE}}, the client responds using the following
+structure:
+
+
+server.php
+?action=response_action
+&carried_param=carried_param_value
+&client_command=typed_text
+&email=[email address]
+&sequence_number=[int]
+&hash_value=[hash value]
+
+Return:
+{{SERVER_STANDARD_RESPONSE}}
+-or-
+DENIED
+
+
+response_action        taken directly from the previous 
+                       {{SERVER_STANDARD_RESPONSE}} 
+
+carried_param_value    taken directly from the previous 
+                       {{SERVER_STANDARD_RESPONSE}} 
+
+client_command         what the client user typed, URL-encoded
+
+
+DENIED is returned if the email isn't known or hash check fails
