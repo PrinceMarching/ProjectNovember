@@ -1271,7 +1271,7 @@ function pn_clientPage() {
 
     $pageName = pn_requestFilter( "carried_param", "/[A-Z0-9_]+/i", "" );
 
-    $command = pn_requestFilter( "client_command", "/[1-9]+/i", "1" );
+    $command = pn_requestFilter( "client_command", "/[0-9]+/i", "1" );
 
     
     global $tableNamePrefix;
