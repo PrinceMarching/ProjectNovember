@@ -126,6 +126,9 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login" );
 
 
+$replacableStrings = array( "%LAST_NAME%" => "fake_last_name" );
+
+
 
 
 if( $action == "version" ) {
@@ -136,13 +139,13 @@ else if( $action == "get_client_sequence_number" ) {
     pn_getClientSequenceNumber();
     }
 else if( $action == "get_intro_text" ) {
-    pn_echoPageText( "intro" );
+    pn_echoPageText( "", "intro" );
     }
 else if( $action == "get_email_prompt" ) {
-    pn_echoPageText( "email_prompt" );
+    pn_echoPageText( "", "email_prompt" );
     }
 else if( $action == "get_pass_words_prompt" ) {
-    pn_echoPageText( "pass_words_prompt" );
+    pn_echoPageText( "", "pass_words_prompt" );
     }
 else if( $action == "login" ) {
     pn_clientLogin();
@@ -217,6 +220,7 @@ else if( preg_match( "/server\.php/", $_SERVER[ "SCRIPT_NAME" ] ) ) {
     // check if our tables exist
     $exists =
         pn_doesTableExist( $tableNamePrefix . "random_nouns" ) &&
+        pn_doesTableExist( $tableNamePrefix . "last_names" ) &&
         pn_doesTableExist( $tableNamePrefix . "users" ) &&
         pn_doesTableExist( $tableNamePrefix . "pages" ) &&
         pn_doesTableExist( $tableNamePrefix . "log" );
@@ -336,7 +340,68 @@ function pn_setupDatabase() {
             $result = pn_queryDatabase( $query );
             }
         }
+
+
+    // these last names taken from nobel prizes in physics and chemistry
+    // between 1970 and 1988
+    // these API calls
+    // http://api.nobelprize.org/v1/prize.json?
+    //        category=physics&year=1970&yearTo=1988
+    // http://api.nobelprize.org/v1/prize.json?
+    //        category=chemistry&year=1970&yearTo=1988
+    //
+    // json processed with this command line:
+    // cat chemistry.json | sed "s/surname\":/\n/g" |
+    //     sed "s/,.*//" | sed "s/\"//g"
     
+    $tableName = $tableNamePrefix . "last_names";
+    if( ! pn_doesTableExist( $tableName ) ) {
+
+        // a source list of character last names
+        // cumulative count is number of people in 1993 population
+        // who have this name or a more common name
+        // less common names have higher cumulative counts
+        $query =
+            "CREATE TABLE $tableName( " .
+            "id SMALLINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, ".
+            "last_name VARCHAR(20) NOT NULL, ".
+            "UNIQUE KEY( last_name ) );";
+
+        $result = pn_queryDatabase( $query );
+
+        echo "<B>$tableName</B> table created<BR>";
+
+
+        if( $file = fopen( "lastNames.txt", "r" ) ) {
+            $firstLine = true;
+
+            $query = "INSERT INTO $tableName (last_name) VALUES ";
+            /*
+			( 'bird' ),
+            ( 'monster' ),
+            ( 'ability' );
+            */
+
+            while( !feof( $file ) ) {
+                $last_name = trim( fgets( $file) );
+                
+                if( ! $firstLine ) {
+                    $query = $query . ",";
+                    }
+                
+                $query = $query . " ( '$last_name' )";
+            
+                $firstLine = false;
+                }
+            
+            fclose( $file );
+
+            $query = $query . ";";
+            
+            $result = pn_queryDatabase( $query );
+            }
+        }
+
     
     
     $tableName = $tableNamePrefix . "users";
@@ -349,6 +414,7 @@ function pn_setupDatabase() {
             "UNIQUE KEY( email ), ".
             // separated by spaces
             "pass_words VARCHAR(254) NOT NULL," .
+            "fake_last_name VARCHAR(20) NOT NULL," .
             "current_page VARCHAR(254) NOT NULL," .
             // for use with client connections
             "client_sequence_number INT NOT NULL );";
@@ -504,10 +570,12 @@ function pn_addUser() {
         }
 
     $pass_words = pn_generateRandomPasswordSequence();
+    $fake_last_name = pn_generateRandomLastName();
     
 
     $query = "INSERT INTO $tableNamePrefix"."users ".
-        "SET email = '$email', pass_words = '$pass_words', current_page = '';";
+        "SET email = '$email', pass_words = '$pass_words', ".
+        "fake_last_name = '$fake_last_name', current_page = '';";
 
 
     global $pn_mysqlLink;
@@ -836,6 +904,7 @@ function pn_showData( $checkPassword = true ) {
     echo "<tr><td>".orderLink( "id", "ID" )."</td>\n";
     echo "<td>".orderLink( "email", "Email" )."</td>\n";
     echo "<td>".orderLink( "pass_words", "Pass Words" )."</td>\n";
+    echo "<td>".orderLink( "fake_last_name", "Fake Last Name" )."</td>\n";
     echo "<td>".orderLink( "current_page", "Current Page" )."</td>\n";
     echo "</tr>\n";
 
@@ -844,6 +913,7 @@ function pn_showData( $checkPassword = true ) {
         $id = pn_mysqli_result( $result, $i, "id" );
         $email = pn_mysqli_result( $result, $i, "email" );
         $pass_words = pn_mysqli_result( $result, $i, "pass_words" );
+        $fake_last_name = pn_mysqli_result( $result, $i, "fake_last_name" );
         $current_page = pn_mysqli_result( $result, $i, "current_page" );
 
         $encodedEmail = urlencode( $email );
@@ -856,6 +926,7 @@ function pn_showData( $checkPassword = true ) {
             "<a href=\"server.php?action=show_detail&email=$encodedEmail\">".
             "$email</a></td>\n";
         echo "<td>$pass_words</td>\n";
+        echo "<td>$fake_last_name</td>\n";
         echo "<td>$current_page</td>\n";
         echo "</tr>\n";
         }
@@ -987,6 +1058,15 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
     <INPUT TYPE="Submit" VALUE="<?php echo $buttonName;?>">
     </FORM>
 <?php
+
+    global $replacableStrings;
+    
+    if( count( $replacableStrings ) > 0 ) {
+        echo "<br>Variables: ";
+        foreach( $replacableStrings as $s => $v ) {
+            echo "$s ";
+            }
+        }
     }
 
 
@@ -1181,8 +1261,8 @@ function pn_pageExists( $name ) {
 
 
 
-function pn_echoPageText( $inName ) {
-    $text = pn_formatPageLines( $inName );
+function pn_echoPageText( $email, $inName ) {
+    $text = pn_formatPageLines( $email, $inName );
 
     echo $text;
     }
@@ -1264,17 +1344,15 @@ function pn_getPassWordsForEmail( $inEmail ) {
 
 
 function pn_clientLogin() {
-    pn_checkAndUpdateClientSeqNumber();
+    $email = pn_checkAndUpdateClientSeqNumber();
 
-    pn_standardResponseForPage( "login" );
+    pn_standardResponseForPage( $email, "login" );
     }
 
 
 
 function pn_clientPage() {
-    $email = pn_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
-
-    pn_checkAndUpdateClientSeqNumber();
+    $email = pn_checkAndUpdateClientSeqNumber();
 
     $pageName = pn_requestFilter( "carried_param", "/[A-Z0-9_]+/i", "" );
 
@@ -1304,7 +1382,7 @@ function pn_clientPage() {
             
             $pickedName = $destList[ $command - 1 ];            
 
-            pn_standardResponseForPage( $pickedName );
+            pn_standardResponseForPage( $email, $pickedName );
             }
         else {
             pn_standardBadChoiceForPage( $pageName );
@@ -1312,7 +1390,7 @@ function pn_clientPage() {
         }
     else if( count( $destList ) == 1 ) {
         // only one option (probably on ENTER) so go there always
-        pn_standardResponseForPage( $destList[0] );
+        pn_standardResponseForPage( $email, $destList[0] );
         }
     else {
         pn_log( "Page $pageName has no destinations specified, ".
@@ -1370,9 +1448,9 @@ function pn_standardHeaderForPage( $inPageName ) {
 
 
 
-function pn_standardResponseForPage( $inPageName ) {
+function pn_standardResponseForPage( $email, $inPageName ) {
     pn_standardHeaderForPage( $inPageName );
-    pn_echoPageText( $inPageName );
+    pn_echoPageText( $email, $inPageName );
     }
 
 
@@ -1454,7 +1532,7 @@ function pn_checkClientSeqHash( $email ) {
 
 
 
-
+// returns validated email
 function pn_checkAndUpdateClientSeqNumber() {
     global $tableNamePrefix;
 
@@ -1479,15 +1557,14 @@ function pn_checkAndUpdateClientSeqNumber() {
             "WHERE email = '$email';";
         pn_queryDatabase( $query );
         }
+    
+    return $email;
     }
 
 
 
 function pn_generateRandomPasswordSequence() {
     global $tableNamePrefix;
-
-    $foundUnique = false;
-    $tryCount = 0;
 
     $name = "";
 
@@ -1506,10 +1583,74 @@ function pn_generateRandomPasswordSequence() {
     }
 
 
+function pn_generateRandomLastName() {
+    global $tableNamePrefix;
+
+
+    $name = "";
+
+    $numberOfWords = 4;
+
+    $query =
+        "SELECT last_name FROM $tableNamePrefix"."last_names ".
+        "       ORDER BY RAND() LIMIT 1;";
+    
+    $result = pn_queryDatabase( $query );
+
+    $name = pn_mysqli_result( $result, 0, 0 );
+    
+    return $name;
+    }
+
+
+
+
+
+
+
+function pn_replaceVarsInLine( $email, $inLine ) {
+    if( $email == "" ) {
+        // no user specified, can't find replacement values anyway
+        return $inLine;
+        }
+    
+    if( substr_count( $inLine, "%" ) == 0 ) {
+        // no vars in this line
+        return $inLine;
+        }
+
+    global $tableNamePrefix;
+    
+    $query = "SELECT * from $tableNamePrefix"."users ".
+        "WHERE email = '$email';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows != 1 ) {
+        // user record not found
+        return $inLine;
+        }
+
+    global $replacableStrings;
+    
+    foreach( $replacableStrings as $v => $c ) {
+
+        $cValue =  pn_mysqli_result( $result, 0, "$c" );
+
+        $inLine = preg_replace( "/$v/", $cValue, $inLine );
+        }
+    
+    
+    return $inLine;
+    }
+
+
 
 
 // includes prompt_color as first line
-function pn_formatPageLines( $inPageName ) {
+function pn_formatPageLines( $email, $inPageName ) {
     global $tableNamePrefix, $defaultPageCharMS;
     
     $query = "SELECT display_text, prompt_color, display_color ".
@@ -1531,6 +1672,8 @@ function pn_formatPageLines( $inPageName ) {
         $result = "$prompt_color";
 
         foreach( $lines as $line ) {
+            $line = pn_replaceVarsInLine( $email, $line );
+            
             $result = $result .
                 "\n[$display_color] [$defaultPageCharMS] [0] [0] $line";
             }
