@@ -464,7 +464,7 @@ function doKeyPress( e ) {
 		}
 		else if( passWords == "" ) {
 			// clean up extra spaces
-			passWords = lowerCommand.trim().split( " " ).join( " " );
+			passWords = lowerCommand.trim().split( /\s+/ ).join( " " );
 			startLoginA();
 		}
 		else if( lowerCommand == "export" ) {
@@ -780,7 +780,7 @@ function startLoginA() {
 
 function startLoginB( inResponse ) {
 	// split by whitespace
-	let parts = inResponse.split( "/\s+/" );
+	let parts = inResponse.split( /\s+/ );
 	
 	serverSequenceNumber = parseInt( parts[0] );
 	
