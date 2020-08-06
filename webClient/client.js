@@ -476,11 +476,16 @@ function doKeyPress( e ) {
 		else if( true ) {
 			// avoid following cases for now
 			// can re-enable for testing later
-			let displayCommand = 
-				nextTypedDisplayPrefix.concat( liveTypedCommand );
 			
-			addLineToBuffer( displayCommand, nextTypedDisplayColor, 
-							 charPrintingStepMS, 0, 0 );
+			if( nextTypedDisplayPrefix != "" ) {
+				// don't add command to buffer if there's
+				// no display prefix
+				let displayCommand = 
+					nextTypedDisplayPrefix.concat( liveTypedCommand );
+				
+				addLineToBuffer( displayCommand, nextTypedDisplayColor, 
+								 charPrintingStepMS, 0, 0 );
+			}
 			triggerNextAction( liveTypedCommand );
 		}
 		else if( lowerCommand.startsWith( "corruption=" ) ) {

@@ -35,6 +35,8 @@ typed_display_prefix  is enclosed in curly braces.  When user types a command
                       The client should prepend this prefix.
                       Example:  {Human: }  (for when a human is talking to
                       an AI.
+                      NOTE:  if typed_display_prefix is empty {}, then
+                      what user types should NOT be displayed by client.
 
 typed_display_color   is a hex color like #FF8800, which the client should
                       use when adding the typed and entered text to the bottom
