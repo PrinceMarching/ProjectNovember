@@ -126,7 +126,8 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login" );
 
 
-$replacableStrings = array( "%LAST_NAME%" => "fake_last_name" );
+$replacableStrings = array( "%LAST_NAME%" => "fake_last_name",
+                            "%CREDITS%" => "credits" );
 
 
 
