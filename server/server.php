@@ -1208,13 +1208,22 @@ function pn_getClientSequenceNumber() {
     
     $seq = pn_getClientSequenceNumberForEmail( $email );
 
+    if( $seq == -1 ) {
+        $rawEmail = $_REQUEST[ "email" ];
+        pn_log( "getClientSequenceNumber not found for email '$rawEmail'" );
+
+        echo "DENIED";
+        return;
+        }
+    
+    
     echo "$seq\n"."OK";
     }
 
 
 
 // assumes already-filtered, valid email
-// returns 0 if not found
+// returns -1 if not found
 function pn_getClientSequenceNumberForEmail( $inEmail ) {
     global $tableNamePrefix;
     
@@ -1225,7 +1234,7 @@ function pn_getClientSequenceNumberForEmail( $inEmail ) {
     $numRows = mysqli_num_rows( $result );
 
     if( $numRows < 1 ) {
-        return 0;
+        return -1;
         }
     else {
         return pn_mysqli_result( $result, 0, "client_sequence_number" );
@@ -1255,9 +1264,7 @@ function pn_getPassWordsForEmail( $inEmail ) {
 
 
 function pn_clientLogin() {
-    $email = pn_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
-
-    pn_checkClientSeqHash( $email );
+    pn_checkAndUpdateClientSeqNumber();
 
     pn_standardResponseForPage( "login" );
     }
@@ -1267,7 +1274,7 @@ function pn_clientLogin() {
 function pn_clientPage() {
     $email = pn_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
 
-    pn_checkClientSeqHash( $email );
+    pn_checkAndUpdateClientSeqNumber();
 
     $pageName = pn_requestFilter( "carried_param", "/[A-Z0-9_]+/i", "" );
 
@@ -1458,9 +1465,13 @@ function pn_checkAndUpdateClientSeqNumber() {
     
     // no locking is done here, because action is asynchronous anyway
 
-    if( $trueSeq == 0 ) {
-        // no record exists, add one
-        pn_addUserRecord( $email );
+    if( $trueSeq == -1 ) {
+        // no record exists
+        pn_log( "checkAndUpdateClientSeqNumber denied, ".
+                "no record found for $email" );
+
+        echo "DENIED";
+        die();
         }
     else {
         $query = "UPDATE $tableNamePrefix". "users SET " .
