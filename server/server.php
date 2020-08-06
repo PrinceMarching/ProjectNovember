@@ -123,6 +123,10 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 
 
+$requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login" );
+
+
+
 
 if( $action == "version" ) {
     global $pn_version;
@@ -130,6 +134,21 @@ if( $action == "version" ) {
     }
 else if( $action == "get_client_sequence_number" ) {
     pn_getClientSequenceNumber();
+    }
+else if( $action == "get_intro_text" ) {
+    pn_echoPageText( "intro" );
+    }
+else if( $action == "get_email_prompt" ) {
+    pn_echoPageText( "email_prompt" );
+    }
+else if( $action == "get_pass_words_prompt" ) {
+    pn_echoPageText( "pass_words_prompt" );
+    }
+else if( $action == "login" ) {
+    pn_clientLogin();
+    }
+else if( $action == "page" ) {
+    pn_clientPage();
     }
 else if( $action == "show_log" ) {
     pn_showLog();
@@ -352,6 +371,8 @@ function pn_setupDatabase() {
             "CREATE TABLE $tableName(" .
             "name VARCHAR(254) NOT NULL PRIMARY KEY,".
             "display_text TEXT NOT NULL,".
+            "display_color VARCHAR(10) NOT NULL,".
+            "prompt_color VARCHAR(10) NOT NULL,".
             "dest_names TEXT NOT NULL )";
         
         $result = pn_queryDatabase( $query );
@@ -503,6 +524,12 @@ function pn_addUser() {
 
 
 
+function pn_parseNameParam() {
+    return pn_requestFilter( "name", "/[A-Z0-9_]+/i", "" );
+    }
+
+    
+
 
 function pn_addPage() {
     pn_checkPassword( "add_page" );
@@ -511,7 +538,7 @@ function pn_addPage() {
 
     global $tableNamePrefix;
     
-    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+    $name = pn_parseNameParam();
 
     if( $name == "" ) {
         echo "Bad page name.";
@@ -519,7 +546,7 @@ function pn_addPage() {
         }
 
     // no filtering
-    $body = $_REQUEST[ $body ];
+    $body = $_REQUEST[ "body" ];
     
     global $pn_mysqlLink;
     
@@ -528,9 +555,18 @@ function pn_addPage() {
 
     $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,]+/i", "" );
 
+    $display_color = strtoupper(
+        pn_requestFilter( "display_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
+
+    $prompt_color = strtoupper(
+        pn_requestFilter( "prompt_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
+
+    
     $query = "INSERT INTO $tableNamePrefix"."pages ".
         "SET name = '$name', display_text = '$slashedBody', ".
-        "dest_names = '$dest_names';";
+        "dest_names = '$dest_names', ".
+        "display_color = '$display_color', ".
+        "prompt_color = '$prompt_color' ;";
 
 
     global $pn_mysqlLink;
@@ -554,8 +590,8 @@ function pn_updatePage() {
     pn_showLinkHeader();
 
     global $tableNamePrefix;
-    
-    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+
+    $name = pn_parseNameParam();
 
     if( $name == "" ) {
         echo "Bad page name.";
@@ -572,8 +608,16 @@ function pn_updatePage() {
 
     $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,]+/i", "" );
 
+    $display_color = strtoupper(
+        pn_requestFilter( "display_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
+
+    $prompt_color = strtoupper(
+        pn_requestFilter( "prompt_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
+
     $query = "UPDATE $tableNamePrefix"."pages ".
         "SET display_text = '$slashedBody', ".
+        "display_color = '$display_color',  ".
+        "prompt_color = '$prompt_color', ".
         "dest_names = '$dest_names' WHERE name = '$name';";
 
 
@@ -593,7 +637,7 @@ function pn_deletePage() {
 
     global $tableNamePrefix;
     
-    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+    $name = pn_parseNameParam();
 
     if( $name == "" ) {
         echo "Bad page name.";
@@ -912,13 +956,16 @@ function pn_showDetail( $checkPassword = true ) {
 
 
 
-function pn_showPageForm( $action, $name, $nameHidden, $body, $dest_names,
+function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
+                          $prompt_color, $dest_names,
                           $buttonName ) {
 
     $nameType = "text";
     if( $nameHidden ) {
         $nameType = "hidden";
         }
+
+    $body = preg_replace( "/\r\n/", "&#13;", $body );
     
 ?>
     <FORM ACTION="server.php" METHOD="post">
@@ -927,7 +974,13 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $dest_names,
     <INPUT TYPE="<?php echo $nameType;?>" MAXLENGTH=80 SIZE=20 NAME="name"
         value='<?php echo $name;?>'><br>
 
-    <textarea name="body" rows="10" cols="35"><?php echo $body;?></textarea><br>
+    <textarea name="body" rows="10" cols="35" style="font-size: 18pt"><?php echo $body;?></textarea><br>
+         Display Color:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="display_color"
+        value='<?php echo $display_color;?>'>
+         Prompt Color:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="prompt_color"
+        value='<?php echo $prompt_color;?>'><br>
          Dest pages:
     <INPUT TYPE="text" MAXLENGTH=80 SIZE=40 NAME="dest_names"
         value='<?php echo $dest_names;?>'><br>
@@ -948,9 +1001,12 @@ function pn_showPages() {
     // first, form for adding a new page
 
     echo "Create new Page:<br>";
+
+    global $defaultPageTextColor, $defaultPagePromptColor;    
     
-    pn_showPageForm( "add_page", "", false, "", "", "Create" );
-    
+    pn_showPageForm( "add_page", "", false, "",
+                     $defaultPageTextColor, $defaultPagePromptColor,
+                     "", "Create" );
 
          
     
@@ -959,17 +1015,62 @@ function pn_showPages() {
     echo "<hr><br>Exising pages:<br><br>";
     
     
-    $query = "SELECT name ".
+    $query = "SELECT name, dest_names ".
             "FROM $tableNamePrefix"."pages;";
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
 
+    global $requiredPages;
+
+    $missingPages = $requiredPages;
+
+    $linkedPages = array();
+    
     for( $i=0; $i<$numRows; $i++ ) {
         $name = pn_mysqli_result( $result, $i, "name" );
 
         echo
         "<a href='server.php?action=edit_page&name=$name'>$name</a><br><br>";
+
+        pn_arrayRemoveByValue( $missingPages, $name );
+
+        $dest_names = pn_mysqli_result( $result, $i, "dest_names" );
+         
+        $destParts = preg_split( "/,/", $dest_names ); 
+
+        foreach( $destParts as $p ) {
+            if( array_search( $p, $linkedPages ) === FALSE ) {
+                $linkedPages[] = $p;
+                }
+            }
+        }
+
+    $missingLinkedPages = $linkedPages;
+
+    for( $i=0; $i<$numRows; $i++ ) {
+        $name = pn_mysqli_result( $result, $i, "name" );
+
+        pn_arrayRemoveByValue( $missingLinkedPages, $name );
+        }
+
+    
+    if( count( $missingPages ) > 0 ) {
+        echo "<hr><br>Missing required pages:<br><br>";
+
+        foreach( $missingPages as $name ) {    
+            echo
+            "<a href='server.php?action=new_page&name=$name'>$name</a><br><br>";
+            }
+        }
+
+    if( count( $missingLinkedPages ) > 0 ) {
+        echo "<hr><br>Missing linked pages:<br><br>";
+
+        foreach( $missingLinkedPages as $name ) {    
+            echo
+            "<a href='server.php?action=new_page&name=$name'>$name</a><br><br>";
+            }
         }
     }
 
@@ -979,12 +1080,17 @@ function pn_newPage() {
     pn_checkPassword( "new_page" );
     
     pn_showLinkHeader();
-    
-    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
+
+    $name = pn_parseNameParam();
 
     echo "Create new Page:<br>";
+
+    global $defaultPageTextColor, $defaultPagePromptColor;
     
-    pn_showPageForm( "add_page", "$name", false, "", "", "Create" );
+    
+    pn_showPageForm( "add_page", "$name", false, "",
+                     $defaultPageTextColor, $defaultPagePromptColor,
+                     "", "Create" );
     }
 
 
@@ -997,13 +1103,11 @@ function pn_editPage( ) {
     
     global $tableNamePrefix;
     
-
-    $name = pn_requestFilter( "name", "/[A-Z0-9]+/i", "" );
-
+    $name = pn_parseNameParam();
 
 
     
-    $query = "SELECT display_text, dest_names ".
+    $query = "SELECT display_text, display_color, prompt_color, dest_names ".
             "FROM $tableNamePrefix"."pages WHERE name='$name';";
     $result = pn_queryDatabase( $query );
     
@@ -1017,6 +1121,8 @@ function pn_editPage( ) {
 
         pn_showPageForm( "update_page", "$name", true,
                          pn_mysqli_result( $result, 0, "display_text" ),
+                         pn_mysqli_result( $result, 0, "display_color" ),
+                         pn_mysqli_result( $result, 0, "prompt_color" ),
                          $dest_names,
                          "Update" );
 
@@ -1025,14 +1131,17 @@ function pn_editPage( ) {
         $destParts = preg_split( "/,/", $dest_names );
         
         foreach( $destParts as $n ) {
-            if( pn_pageExists( $n ) ) {
+            if( $n != "" ) {
                 
-                echo "<a href='server.php?".
-                    "action=edit_page&name=$n'>$n</a><br><br>";
-                }
-            else {
-                echo "<a href='server.php?".
-                    "action=new_page&name=$n'>$n</a><br><br>";
+                if( pn_pageExists( $n ) ) {
+                    
+                    echo "<a href='server.php?".
+                        "action=edit_page&name=$n'>$n</a><br><br>";
+                    }
+                else {
+                    echo "<a href='server.php?".
+                        "action=new_page&name=$n'>$n</a> [missing]<br><br>";
+                    }
                 }
             }
 ?>
@@ -1066,6 +1175,16 @@ function pn_pageExists( $name ) {
         return true;
         }
     return false;
+    }
+
+    
+
+
+
+function pn_echoPageText( $inName ) {
+    $text = pn_formatPageLines( $inName );
+
+    echo $text;
     }
 
     
@@ -1133,6 +1252,99 @@ function pn_getPassWordsForEmail( $inEmail ) {
     }
 
 
+
+
+function pn_clientLogin() {
+    $email = pn_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+
+    pn_checkClientSeqHash( $email );
+
+    pn_standardResponseForPage( "login" );
+    }
+
+
+
+function pn_clientPage() {
+    $email = pn_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+
+    pn_checkClientSeqHash( $email );
+
+    $pageName = pn_requestFilter( "carried_param", "/[A-Z0-9_]+/i", "" );
+
+    $command = pn_requestFilter( "client_command", "/[1-9]+/i", "1" );
+
+    
+    global $tableNamePrefix;
+    
+    $dest_names = "";
+    
+    $query = "SELECT dest_names ".
+            "FROM $tableNamePrefix"."pages WHERE name='$pageName';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+        $dest_names = pn_mysqli_result( $result, 0, "dest_names" );
+        }
+
+    $destList = preg_split( "/,/", $dest_names );
+
+    if( count( $destList ) > 0 ) {
+    
+        $pickedName = $destList[0];
+        
+        if( $command >= 1 && count( $destList ) > $command - 1 ) {
+            $pickedName = $destList[ $command - 1 ];            
+            }
+        pn_standardResponseForPage( $pickedName );
+        }
+    else {
+        pn_log( "Page $pageName has no destinations specified, ".
+                "$command chosen by user" );
+        
+        echo "DENIED";
+        die();
+        }
+    
+    
+    }
+
+
+
+function pn_standardResponseForPage( $inPageName ) {
+
+    // next action
+    echo "page\n";
+    // carried param
+    echo "$inPageName\n";
+    // no typed display prefix
+    echo "{}\n";
+
+    global $defaultPagePromptColor;
+    $prompt_color = $defaultPagePromptColor;
+
+    global $tableNamePrefix;
+    
+    
+    $query = "SELECT prompt_color ".
+            "FROM $tableNamePrefix"."pages WHERE name='$name';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+        $prompt_color = pn_mysqli_result( $result, 0, "prompt_color" );
+        }
+
+    // use prompt color for what user types being added to bottom
+    echo "$prompt_color\n";
+    
+    // don't clear
+    echo "0\n";
+    
+    pn_echoPageText( $inPageName );
+    }
 
 
 
@@ -1246,6 +1458,42 @@ function pn_generateRandomPasswordSequence() {
     return $name;
     }
 
+
+
+
+// includes prompt_color as first line
+function pn_formatPageLines( $inPageName ) {
+    global $tableNamePrefix, $defaultPageCharMS;
+    
+    $query = "SELECT display_text, prompt_color, display_color ".
+            "FROM $tableNamePrefix"."pages WHERE name='$inPageName';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+
+        $display_text = pn_mysqli_result( $result, 0, "display_text" );
+        
+        $display_color = pn_mysqli_result( $result, 0, "display_color" );
+
+        $prompt_color = pn_mysqli_result( $result, 0, "prompt_color" );
+
+        $lines = preg_split( "/\n/", $display_text );
+
+        $result = "$prompt_color";
+
+        foreach( $lines as $line ) {
+            $result = $result .
+                "\n[$display_color] [$defaultPageCharMS] [0] [0] $line";
+            }
+        
+        return $result;
+        }
+    else {
+        return "";
+        }    
+    }
 
 
 
@@ -1809,6 +2057,13 @@ function pn_hexDecodeToBitString( $inHexString ) {
     return $bitString;
     }
  
+
+
+function pn_arrayRemoveByValue( &$inArray, $inValue ) {
+    if( ( $key = array_search( $inValue, $inArray ) ) !== false ) {
+        unset( $inArray[$key] );
+        }
+    }
 
 
  

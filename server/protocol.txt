@@ -9,10 +9,10 @@ The format of a {{SERVER_STANDARD_RESPONSE}} is as follows:
 
 response_action
 carried_param
-prompt_color
 typed_display_prefix
 typed_display_color
 clear_flag
+prompt_color
 text_line
 text_line
 text_line
@@ -28,9 +28,6 @@ response_action       is the action parameter that the client can send its next
 carried_param         is an opaque paramter S with no whitespace that the client
                       should include as carried_param=S in its next request.
 
-prompt_color          is a hex color like #FF8800 for the interactive prompt, 
-                      live typing, and cursor presented to the user.
-
 typed_display_prefix  is enclosed in curly braces.  When user types a command
                       and hits ENTER, the client will automatically add
                       the typed text to the bottom of the buffer (before
@@ -45,10 +42,12 @@ typed_display_color   is a hex color like #FF8800, which the client should
 
 clear_flag            0 or 1.  If 1, existing buffer of text should be cleared.
 
+prompt_color          is a hex color like #FF8800 for the interactive prompt, 
+                      live typing, and cursor presented to the user.
 
-text_line             each line is in the following format (with curly braces):
+text_line             each line is in the following format (with square braces):
 
-{color}{ms_per_char_speed}{corruption_fraction}{corruption_skip_chars}text
+[color] [ms_per_char_speed] [corruption_fraction] [corruption_skip_chars] text
 
 color                  is a hex color like #FF8800
 
@@ -71,6 +70,51 @@ hash_value is computed on both ends with:
 HMAC_SHA1( $pass_words, $string_to_hash )
 
 Where $pass_words has one space between words and is all lowercase.
+
+
+
+
+server.php
+?action=get_intro_text
+
+Return:
+prompt_color
+text_line
+text_line
+text_line
+...
+text_line
+
+
+Gets the text that should be displayed before login.
+These lines are explained in Standard Server Response above.
+
+
+
+server.php
+?action=get_email_prompt
+
+Return:
+prompt_color
+text_line
+text_line
+text_line
+...
+text_line
+
+
+
+
+server.php
+?action=get_pass_words_prompt
+
+Return:
+prompt_color
+text_line
+text_line
+text_line
+...
+text_line
 
 
 

@@ -92,6 +92,12 @@ $accessPasswords = array( "8e409075ab35b161f6d2d57775e5efbee8d7b674",
 $usersPerPage = 20;
 
 
+$defaultPageCharMS = 10;
+
+
+$defaultPageTextColor = "#FFFFFF";
+$defaultPagePromptColor = "#FFFF00";
+
 
 
 ?>

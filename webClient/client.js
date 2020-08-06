@@ -116,6 +116,8 @@ function resetCursorFlash() {
 }
 
 
+var promptColor = "#FFFF00";
+
 
 function drawCursor( inX, inY, inCTX ) {
 	trigger = 
@@ -126,8 +128,8 @@ function drawCursor( inX, inY, inCTX ) {
 			lastWasDraw = true;
 			timedRedraw( flashMS );
 		}
-		drawString( "|", inX - 4 * drawScale, inY, inCTX, "#FFFF00" );
-		drawString( "|", inX + 1 * drawScale, inY, inCTX, "#FFFF00" );
+		drawString( "|", inX - 4 * drawScale, inY, inCTX, promptColor );
+		drawString( "|", inX + 1 * drawScale, inY, inCTX, promptColor );
 	}
 	else {
 		// else skip drawing
@@ -163,6 +165,7 @@ var origLineBuffer = [];
 
 var lineBuffer = [];
 var lineBufferColor = [];
+var lineBufferCharMS = []
 
 var lineBufferCorruptionFlags = [];
 
@@ -172,11 +175,13 @@ var linesToAdd = [];
 var linesToAddProgress = [];
 
 var linesToAddColor = [];
+var linesToAddCharMS = [];
 var linesToAddCorruptionFlags = [];
 
 var liveTypedCommand = "";
 
-function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0,
+function addLineToBuffer( inString, inColor, inMSPerChar, 
+						  inCorruptionChance = 0.0,
 						  inCorruptionSkip = 0 ) {
 	
 	var origStringArray = inString.split( "" );
@@ -191,6 +196,7 @@ function addLineToBuffer( inString, inColor, inCorruptionChance = 0.0,
 		function( line ) {
 			linesToAddProgress.push( 0 );
 			linesToAddColor.push( inColor );
+			linesToAddCharMS.push( inMSPerChar );
 			var corruptionFlags = [];
 			for( i =0; i<line.length; i++ ) {
 				// never corrupt spaces
@@ -221,7 +227,8 @@ function clearLineBuffers() {
 
 	lineBuffer = [];
 	lineBufferColor = [];
-	
+	lineBufferCharMS = []
+
 	lineBufferCorruptionFlags = [];
 	
 	
@@ -230,6 +237,7 @@ function clearLineBuffers() {
 	linesToAddProgress = [];
 	
 	linesToAddColor = [];
+	linesToAddCharMS = [];
 	linesToAddCorruptionFlags = [];
 }
 
@@ -255,8 +263,12 @@ window.addEventListener( "keypress", doKeyPress, false );
 window.addEventListener( "keydown", doKeyDown, false );
 
 
-var stringToDraw = "Hey there, punk!";
-var stringToDrawProgress = 0;
+
+// kick things off by fetching intro text from server
+getIntroText();
+
+
+
 
 var charPrintingStartTime = 0;
 var charPrintingStepMS = 25;
@@ -278,6 +290,12 @@ function splitCommandLines( inCanvas ) {
 
 
 var scrollUp = 0;
+
+var hidePrompt = true;
+
+var email = "";
+var passWords = "";
+
 
 
 function drawFrameContents( inCTX, inCanvas, inIsExport ) {
@@ -320,17 +338,22 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 		if( commandLines.length > 1 ) {
 			drawY -= fontSpacingV * ( commandLines.length - 1 );
 		}
-		drawString( ">", 10, drawY, inCTX, "#FFFF00" );
+		
+		if( ! hidePrompt )
+		drawString( ">", 10, drawY, inCTX, promptColor );
 		
 		lineY = drawY;
 		lineI = 0;
 		
 		commandLines.forEach(
 			function( line ) {
-				drawString( line, 10 + fontSpacingH, lineY, inCTX, "#FFFF00" );
+				if( ! hidePrompt )
+				drawString( line, 10 + fontSpacingH, lineY, inCTX, 
+							promptColor );
 				if( lineI == commandLines.length - 1 ) {
 					// last line of current command
 					// put cursor at end
+					if( ! hidePrompt )
 					drawCursor( 10 + fontSpacingH + fontSpacingH *
 								line.length, lineY, inCTX ); 
 				}
@@ -350,7 +373,7 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 
 	// add one character from one line to add
 	if( linesToAdd.length > 0 && 
-	  ( getMSTime() - charPrintingStartTime ) > charPrintingStepMS ) {
+	  ( getMSTime() - charPrintingStartTime ) > linesToAddCharMS[0] ) {
 		charPrintingStartTime = getMSTime();
 
 		timedRedraw( charPrintingStepMS );
@@ -358,6 +381,7 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 		if( linesToAddProgress[0] == 0 ) {
 			lineBuffer.push( linesToAdd[0].substring( 0, 1 ) );
 			lineBufferColor.push( linesToAddColor[0] );
+			lineBufferCharMS.push( linesToAddCharMS[0] );
 			lineBufferCorruptionFlags.push( linesToAddCorruptionFlags[0] );
 			linesToAddProgress[0] ++;
 			if( scrollUp > 0 ) {
@@ -377,6 +401,7 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 				linesToAdd.shift();
 				linesToAddProgress.shift();
 				linesToAddColor.shift();
+				linesToAddCharMS.shift();
 				linesToAddCorruptionFlags.shift();
 			}
 		}
@@ -413,6 +438,10 @@ var currentCorruption = 0;
 
 
 function doKeyPress( e ) {
+	if( hidePrompt ) {
+		return;
+	}
+
 	if( e.keyCode >= 32 && e.keyCode <= 126 ) {
 		scrollUp = 0;
 		e.preventDefault();
@@ -426,12 +455,33 @@ function doKeyPress( e ) {
 
 		
 		var lowerCommand = liveTypedCommand.toLowerCase();
-		
-		if( lowerCommand == "export" ) {
+
+
+		if( email == "" ) {
+			// still need to collect email for login
+			email = lowerCommand;
+			getPassWordsPrompt();
+		}
+		else if( passWords == "" ) {
+			// clean up extra spaces
+			passWords = lowerCommand.trim().split( " " ).join( " " );
+			startLoginA();
+		}
+		else if( lowerCommand == "export" ) {
 			exportAll();
 		}
 		else if( lowerCommand == "clear" ) {
 			clearLineBuffers();
+		}
+		else if( true ) {
+			// avoid following cases for now
+			// can re-enable for testing later
+			let displayCommand = 
+				nextTypedDisplayPrefix.concat( liveTypedCommand );
+			
+			addLineToBuffer( displayCommand, nextTypedDisplayColor, 
+							 charPrintingStepMS, 0, 0 );
+			triggerNextAction( liveTypedCommand );
 		}
 		else if( lowerCommand.startsWith( "corruption=" ) ) {
 			var c = parseInt( lowerCommand.split( "=" )[1] );
@@ -440,7 +490,7 @@ function doKeyPress( e ) {
 				addLineToBuffer( 
 					"--:CORRUPTION LEVEL ".
 						concat( c ).concat( ":--" ), 
-					"#FF0000", 0 );
+					"#FF0000", charPrintingStepMS, 0 );
 			}
 		}
 		else {
@@ -462,7 +512,8 @@ function doKeyPress( e ) {
 				cSkip = 9;
 			}
 			
-			addLineToBuffer( liveTypedCommand, lineColor, c, cSkip );
+			addLineToBuffer( liveTypedCommand, lineColor, 
+							 charPrintingStepMS, c, cSkip );
 			
 			playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
 									 charPrintingStepMS );
@@ -604,4 +655,205 @@ beepSoundObj = loadSoundObject( "beep2.wav" );
 
 
 
+function getServerActionAndCall( inAction, inResponseCall ) {
+	var fullURL = serverURL.concat( "?action=" ).concat( inAction );
+	getURLAndCall( fullURL, inResponseCall );
+}
 
+
+
+function stripCurly( inString ) {
+	return inString.slice( 1, -1 );
+}
+
+
+// includes prompt color and text lines
+function addResponseLines( inResponseLines ) {
+	let lines = inResponseLines.split( "\n" );
+	
+	if( lines.length <= 1 ) {
+		return;
+	}
+	
+	promptColor = lines[0];
+	lines.shift();
+	
+	lines.forEach( 
+		function( s ) {
+			let lineWords = s.split( " " );
+			
+			if( lineWords.length > 4 ) {
+				let color = stripCurly( lineWords[0] );
+				let ms = stripCurly( lineWords[1] );
+				let corruptionFract = stripCurly( lineWords[2] );
+				let corruptionSkip = stripCurly( lineWords[3] );
+				
+				lineWords.shift();
+				lineWords.shift();
+				lineWords.shift();
+				lineWords.shift();
+				
+				// now join remainder as text of line
+				let text = lineWords.join( " " );
+				addLineToBuffer( text, color, ms, 
+								 corruptionFract, corruptionSkip );
+			}
+		}
+	);	
+}
+
+
+
+// sets prompt color, adds lines to buffer, and then calls a function with
+// no parameters after
+function getServerActionAndAddLines( inAction, inAfterCall ) {
+	var callback = function( inText ) {
+		addResponseLines( inText );
+		inAfterCall();
+	}
+	
+	getServerActionAndCall( inAction, callback );
+}
+	
+
+function getIntroText() {
+	getServerActionAndAddLines( "get_intro_text", getEmailPrompt );
+}
+
+
+function getEmailPrompt() {
+	hidePrompt = true;
+	getServerActionAndAddLines( "get_email_prompt", readyForEmail );
+}
+
+
+function getPassWordsPrompt() {
+	hidePrompt = true;
+	getServerActionAndAddLines( "get_pass_words_prompt", readyForPassWords );
+}
+
+
+
+function unhidePrompt() {
+	hidePrompt = false;
+	resetCursorFlash();
+	redrawNow();
+}
+
+
+function readyForEmail() {
+	unhidePrompt();
+}
+
+
+function readyForPassWords() {
+	unhidePrompt();
+}
+
+
+var nextServerAction = "";
+var nextCarriedParam = "";
+
+var nextTypedDisplayPrefix = "";
+var nextTypedDisplayColor = "";
+
+function sendNextServerAction() {
+
+}
+
+
+var serverSequenceNumber = 0;
+
+function startLoginA() {
+	hidePrompt = true;
+	var fullURL = serverURL.
+		concat( "?action=get_client_sequence_number&email=" ).
+		concat( email );
+	getURLAndCall( fullURL, startLoginB );
+	}
+
+
+function startLoginB( inResponse ) {
+	// split by whitespace
+	let parts = inResponse.split( "/\s+/" );
+	
+	serverSequenceNumber = parseInt( parts[0] );
+	
+	var fullURL = serverURL.
+		concat( "?action=login&email=" ).
+		concat( email ).
+		concat( getSeqAndHash() );
+	getURLAndCall( fullURL, parseStandardResponse );
+}
+
+
+
+function parseStandardResponse( inResponse ) {
+	let parts = inResponse.split( "\n" );
+
+	if( parts[0] == "DENIED" ) {
+		addLineToBuffer( "DENIED", "#FF0000", charPrintingStepMS, 
+						 0, 0 );
+		email = "";
+		passWords = "";
+		getEmailPrompt();
+		return;
+	}
+	
+	nextServerAction = parts[0];
+	nextCarriedParam = parts[1];
+	// remove curly braces
+	nextTypedDisplayPrefix = parts[2].slice( 1, -1 );
+	nextTypedDisplayColor = parts[3];
+	let clearFlag = parts[4];
+	if( clearFlag == 1 ) {
+		clearLineBuffers();
+		}
+	parts.shift();
+	parts.shift();
+	parts.shift();
+	parts.shift();
+	parts.shift();
+
+	let lines = parts.join( "\n" );
+	addResponseLines( lines );
+
+	unhidePrompt();
+}
+
+
+
+
+function triggerNextAction( inWhatUserTyped ) {
+	let encoded = encodeURIComponent( inWhatUserTyped );
+	
+	var fullURL = serverURL.
+		concat( "?action=" ).
+		concat( nextServerAction ).
+		concat( "&carried_param=" ).
+		concat( nextCarriedParam ).
+		concat( "&client_command=" ).
+		concat( encoded ).
+		concat( "&email=" ).
+		concat( email ).
+		concat( getSeqAndHash() );
+	
+	getURLAndCall( fullURL, parseStandardResponse );
+	hidePrompt = true;
+}
+
+
+
+// returns &sequence_number=[int]&hash_value=[hash value]  as string
+// increments sequence number
+function getSeqAndHash() {
+	let s = serverSequenceNumber;
+	let hash = hex_hmac_sha1( passWords, s.toString() );
+	
+	serverSequenceNumber++;
+	
+	return "&sequence_number=".
+		concat( s ).
+		concat( "&hash_value=" ).
+		concat( hash );
+}
