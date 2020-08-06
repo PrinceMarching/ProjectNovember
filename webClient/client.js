@@ -129,7 +129,10 @@ function drawCursor( inX, inY, inCTX ) {
 			timedRedraw( flashMS );
 		}
 		drawString( "|", inX - 4 * drawScale, inY, inCTX, promptColor );
+		drawString( "|", inX - 2 * drawScale, inY, inCTX, promptColor );
 		drawString( "|", inX + 1 * drawScale, inY, inCTX, promptColor );
+		drawString( "|", inX + 4 * drawScale, inY, inCTX, promptColor );
+		drawString( "|", inX + 6 * drawScale, inY, inCTX, promptColor );
 	}
 	else {
 		// else skip drawing
@@ -179,6 +182,11 @@ var linesToAddCharMS = [];
 var linesToAddCorruptionFlags = [];
 
 var liveTypedCommand = "";
+
+// relative to beginning of what has been typed
+// a 0 or positive value
+var liveTypedCursorOffset = 0;
+
 
 function addLineToBuffer( inString, inColor, inMSPerChar, 
 						  inCorruptionChance = 0.0,
@@ -345,17 +353,27 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 		lineY = drawY;
 		lineI = 0;
 		
+		let charDrawnI = 0;
+		let numLines = commandLines.length;
 		commandLines.forEach(
 			function( line ) {
 				if( ! hidePrompt )
 				drawString( line, 10 + fontSpacingH, lineY, inCTX, 
 							promptColor );
-				if( lineI == commandLines.length - 1 ) {
-					// last line of current command
-					// put cursor at end
+				let oldCharDrawnI = charDrawnI;
+				charDrawnI += line.length;
+				
+				if( numLines == 1 ||
+					( charDrawnI >= liveTypedCursorOffset &&
+					  oldCharDrawnI <= liveTypedCursorOffset ) ) {
+					// cursor on this line!
+					let cursorLineOffset = 
+						liveTypedCursorOffset - oldCharDrawnI;
+					
 					if( ! hidePrompt )
 					drawCursor( 10 + fontSpacingH + fontSpacingH *
-								line.length, lineY, inCTX ); 
+								cursorLineOffset, 
+								lineY, inCTX ); 
 				}
 				lineI ++;
 				lineY += fontSpacingV;
@@ -437,6 +455,17 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 var currentCorruption = 0;
 
 
+
+function insertStringInTypedCommand( inString ) {
+	let beforeCursor = liveTypedCommand.substring( 0, liveTypedCursorOffset );
+	let afterCursor = liveTypedCommand.substring( liveTypedCursorOffset );
+	
+	liveTypedCommand = beforeCursor.concat( inString ).concat( afterCursor );
+	liveTypedCursorOffset += inString.length;
+	}
+
+
+
 function doKeyPress( e ) {
 	if( hidePrompt ) {
 		return;
@@ -447,7 +476,7 @@ function doKeyPress( e ) {
 		e.preventDefault();
 		resetCursorFlash();
 		c = String.fromCharCode( e.keyCode );
-		liveTypedCommand = liveTypedCommand.concat( c );
+		insertStringInTypedCommand( c );
 	}
 	else if( e.keyCode == 13 ) {
 		scrollUp = 0;
@@ -523,7 +552,8 @@ function doKeyPress( e ) {
 			playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
 									 charPrintingStepMS );
 		}
-		liveTypedCommand = "";		
+		liveTypedCommand = "";
+		liveTypedCursorOffset = 0;
 	}
 	redrawNow();
 }
@@ -557,8 +587,19 @@ function doKeyDown( e ) {
 		e.preventDefault();
 		resetCursorFlash();
 		if( liveTypedCommand.length > 0 ) {
-			liveTypedCommand = 
-				liveTypedCommand.substring( 0, liveTypedCommand.length - 1 );
+			let beforeCursor = 
+				liveTypedCommand.substring( 0, liveTypedCursorOffset );
+			let afterCursor = 
+				liveTypedCommand.substring( liveTypedCursorOffset );
+			
+			liveTypedCommand = "";
+			
+			if( beforeCursor.length > 0 ) {
+				liveTypedCommand = 
+					beforeCursor.substring( 0, beforeCursor.length - 1 );
+				liveTypedCursorOffset --;
+			}
+			liveTypedCommand = liveTypedCommand.concat( afterCursor );
 		}
 	}
 	else if( e.keyCode == 38 ||
@@ -605,6 +646,20 @@ function doKeyDown( e ) {
 			scrollUp = 0;
 		}
 	}
+	else if( e.keyCode == 37 ) {
+		liveTypedCursorOffset --;
+		if( liveTypedCursorOffset < 0 ) {
+			liveTypedCursorOffset = 0;
+		}
+		resetCursorFlash();
+	}
+	else if( e.keyCode == 39 ) {
+		liveTypedCursorOffset++;
+		if( liveTypedCursorOffset > liveTypedCommand.length ) {
+			liveTypedCursorOffset = liveTypedCommand.length;
+			}
+		resetCursorFlash();
+	}
 	redrawNow();
 }
 
@@ -617,7 +672,7 @@ window.addEventListener( 'paste', (event) => {
 	
 	if( paste != "" ) {
 		resetCursorFlash();
-		liveTypedCommand = liveTypedCommand.concat( paste );
+		insertStringInTypedCommand( paste );
 		redrawNow();
 	}
 } );
