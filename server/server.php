@@ -1271,7 +1271,7 @@ function pn_clientPage() {
 
     $pageName = pn_requestFilter( "carried_param", "/[A-Z0-9_]+/i", "" );
 
-    $command = pn_requestFilter( "client_command", "/[0-9]+/i", "1" );
+    $command = pn_requestFilter( "client_command", "/[0-9]+/i", "" );
 
     
     global $tableNamePrefix;
@@ -1290,14 +1290,22 @@ function pn_clientPage() {
 
     $destList = preg_split( "/,/", $dest_names );
 
-    if( count( $destList ) > 0 ) {
+    if( count( $destList ) > 1 ) {
     
-        $pickedName = $destList[0];
-        
-        if( $command >= 1 && count( $destList ) > $command - 1 ) {
+        if( $command != "" &&
+            $command >= 1 && count( $destList ) > $command - 1 ) {
+            
             $pickedName = $destList[ $command - 1 ];            
+
+            pn_standardResponseForPage( $pickedName );
             }
-        pn_standardResponseForPage( $pickedName );
+        else {
+            pn_standardBadChoiceForPage( $pageName );
+            }
+        }
+    else if( count( $destList ) == 1 ) {
+        // only one option (probably on ENTER) so go there always
+        pn_standardResponseForPage( $destList[0] );
         }
     else {
         pn_log( "Page $pageName has no destinations specified, ".
@@ -1312,15 +1320,7 @@ function pn_clientPage() {
 
 
 
-function pn_standardResponseForPage( $inPageName ) {
-
-    // next action
-    echo "page\n";
-    // carried param
-    echo "$inPageName\n";
-    // no typed display prefix
-    echo "{}\n";
-
+function pn_getPromptColorForPage( $inPageName ) {
     global $defaultPagePromptColor;
     $prompt_color = $defaultPagePromptColor;
 
@@ -1336,14 +1336,50 @@ function pn_standardResponseForPage( $inPageName ) {
     if( $numRows == 1 ) {
         $prompt_color = pn_mysqli_result( $result, 0, "prompt_color" );
         }
+    return $prompt_color;
+    }
 
+
+
+function pn_standardHeaderForPage( $inPageName ) {
+
+    // next action
+    echo "page\n";
+    // carried param
+    echo "$inPageName\n";
+    // no typed display prefix
+    echo "{}\n";
+
+
+    $prompt_color = pn_getPromptColorForPage();
+    
     // use prompt color for what user types being added to bottom
     echo "$prompt_color\n";
     
     // don't clear
     echo "0\n";
-    
+
+    }
+
+
+
+function pn_standardResponseForPage( $inPageName ) {
+    pn_standardHeaderForPage( $inPageName );
     pn_echoPageText( $inPageName );
+    }
+
+
+
+function pn_standardBadChoiceForPage( $inPageName ) {
+    pn_standardHeaderForPage( $inPageName );
+
+    $prompt_color = pn_getPromptColorForPage();
+    
+    echo "$prompt_color\n";
+
+    global $defaultPageCharMS;
+    
+    echo "[#FF0000] [$defaultPageCharMS] [0] [0] INVALID SELECTION";
     }
 
 
