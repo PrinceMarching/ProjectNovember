@@ -1382,7 +1382,12 @@ function pn_clientPage() {
             
             $pickedName = $destList[ $command - 1 ];            
 
-            pn_standardResponseForPage( $email, $pickedName );
+            if( pn_pageExists( $pickedName ) ) {
+                pn_standardResponseForPage( $email, $pickedName );
+                }
+            else {
+                pn_standardBadChoiceForPage( $pageName, "PAGE NOT FOUND" );
+                }    
             }
         else {
             pn_standardBadChoiceForPage( $pageName );
@@ -1455,7 +1460,8 @@ function pn_standardResponseForPage( $email, $inPageName ) {
 
 
 
-function pn_standardBadChoiceForPage( $inPageName ) {
+function pn_standardBadChoiceForPage( $inPageName,
+                                      $inMessage = "INVALID SELECTION" ) {
     pn_standardHeaderForPage( $inPageName );
 
     $prompt_color = pn_getPromptColorForPage();
@@ -1464,7 +1470,7 @@ function pn_standardBadChoiceForPage( $inPageName ) {
 
     global $defaultPageCharMS;
     
-    echo "[#FF0000] [$defaultPageCharMS] [0] [0] INVALID SELECTION";
+    echo "[#FF0000] [$defaultPageCharMS] [0] [0] $inMessage";
     }
 
 
