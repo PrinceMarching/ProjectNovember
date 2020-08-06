@@ -162,6 +162,9 @@ else if( $action == "clear_log" ) {
 else if( $action == "add_user" ) {
     pn_addUser();
     }
+else if( $action == "add_credits" ) {
+    pn_addCredits();
+    }
 else if( $action == "show_data" ) {
     pn_showData();
     }
@@ -415,6 +418,7 @@ function pn_setupDatabase() {
             // separated by spaces
             "pass_words VARCHAR(254) NOT NULL," .
             "fake_last_name VARCHAR(20) NOT NULL," .
+            "credits int NOT NULL," .
             "current_page VARCHAR(254) NOT NULL," .
             // for use with client connections
             "client_sequence_number INT NOT NULL );";
@@ -562,20 +566,24 @@ function pn_addUser() {
 
     global $tableNamePrefix;
     
-    $email = pn_requestFilter( "email", "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i", "" );
+    $email = pn_getEmailParam();
 
     if( $email == "" ) {
         echo "Bad email.";
         return;
         }
 
+    $credits = pn_requestFilter( "credits", "/[0-9]+/i", 0 );
+
+    
     $pass_words = pn_generateRandomPasswordSequence();
     $fake_last_name = pn_generateRandomLastName();
     
 
     $query = "INSERT INTO $tableNamePrefix"."users ".
         "SET email = '$email', pass_words = '$pass_words', ".
-        "fake_last_name = '$fake_last_name', current_page = '';";
+        "fake_last_name = '$fake_last_name', credits = '$credits', ".
+        "current_page = '';";
 
 
     global $pn_mysqlLink;
@@ -905,6 +913,7 @@ function pn_showData( $checkPassword = true ) {
     echo "<td>".orderLink( "email", "Email" )."</td>\n";
     echo "<td>".orderLink( "pass_words", "Pass Words" )."</td>\n";
     echo "<td>".orderLink( "fake_last_name", "Fake Last Name" )."</td>\n";
+    echo "<td>".orderLink( "credits", "Computing Credits" )."</td>\n";
     echo "<td>".orderLink( "current_page", "Current Page" )."</td>\n";
     echo "</tr>\n";
 
@@ -914,6 +923,7 @@ function pn_showData( $checkPassword = true ) {
         $email = pn_mysqli_result( $result, $i, "email" );
         $pass_words = pn_mysqli_result( $result, $i, "pass_words" );
         $fake_last_name = pn_mysqli_result( $result, $i, "fake_last_name" );
+        $credits = pn_mysqli_result( $result, $i, "credits" );
         $current_page = pn_mysqli_result( $result, $i, "current_page" );
 
         $encodedEmail = urlencode( $email );
@@ -927,6 +937,7 @@ function pn_showData( $checkPassword = true ) {
             "$email</a></td>\n";
         echo "<td>$pass_words</td>\n";
         echo "<td>$fake_last_name</td>\n";
+        echo "<td>$credits</td>\n";
         echo "<td>$current_page</td>\n";
         echo "</tr>\n";
         }
@@ -945,6 +956,8 @@ function pn_showData( $checkPassword = true ) {
     <INPUT TYPE="hidden" NAME="action" VALUE="add_user">
              Email:
     <INPUT TYPE="text" MAXLENGTH=80 SIZE=20 NAME="email"><br>
+             Starting Computing Credits:
+    <INPUT TYPE="text" MAXLENGTH=5 SIZE=5 NAME="credits" value="0"><br>
     <INPUT TYPE="Submit" VALUE="Create">
     </FORM>
         </td>
@@ -995,7 +1008,7 @@ function pn_showDetail( $checkPassword = true ) {
         $email = pn_mysqli_result( $result, 0, "email" );
         }
     else {
-        $email = pn_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i" );
+        $email = pn_getEmailParam();
     
         $query = "SELECT id ".
             "FROM $tableNamePrefix"."users ".
@@ -1004,25 +1017,72 @@ function pn_showDetail( $checkPassword = true ) {
         
         $id = pn_mysqli_result( $result, 0, "id" );
         }
-
-
     
-    $query = "SELECT name, age, relation_name, ".
-        "old_score, new_score, death_time, life_player_id ".
-        "FROM $tableNamePrefix"."offspring AS offspring ".
-        "INNER JOIN $tableNamePrefix"."lives AS lives ".
-        "ON offspring.life_id = lives.id ".
-        "WHERE offspring.player_id = $id ORDER BY offspring.death_time DESC";
-
-    
+    $query = "SELECT credits ".
+            "FROM $tableNamePrefix"."users ".
+            "WHERE id = '$id';";
     $result = pn_queryDatabase( $query );
-
+    
+    $credits = pn_mysqli_result( $result, 0, "credits" );
+    
+    
     echo "<center><table border=0><tr><td>";
     
     echo "<b>ID:</b> $id<br><br>";
     echo "<b>Email:</b> $email<br><br>";
+    echo "<b>Computing Credits:</b> $credits<br><br>";
     echo "</td></tr></table>";
+
+    // form for adding credits
+?>
+        <td>
+        Add Computing Credits:<br>
+            <FORM ACTION="server.php" METHOD="post">
+    <INPUT TYPE="hidden" NAME="action" VALUE="add_credits">
+    <INPUT TYPE="hidden" NAME="email" VALUE="<?php echo $email;?>">
+    <INPUT TYPE="text" MAXLENGTH=5 SIZE=5 NAME="add" VALUE="0"><br>
+    <INPUT TYPE="Submit" VALUE="Add">
+    </FORM>
+        </td>
+<?php
+
     }
+
+
+
+function pn_addCredits() {
+    pn_checkPassword( "addCredits" );
+
+    $add = pn_requestFilter( "add", "/\-?[0-9]+/i", 0 );
+
+    if( $add == 0 ) {
+        echo "Add failed<br>";
+        }
+    else {
+        $email = pn_getEmailParam();
+
+        global $tableNamePrefix;
+        
+        $query = "UPDATE $tableNamePrefix"."users ".
+            "SET credits = credits + $add ".
+            "WHERE email = '$email';";
+        $result = pn_queryDatabase( $query );
+        
+        echo "Added $add credits for $email<br>";
+        }
+    
+    pn_showDetail( false );
+    }
+
+
+
+function pn_getEmailParam() {
+    $email = pn_requestFilter( "email",
+                               "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+    return $email;
+    }
+
+    
 
 
 
@@ -1275,7 +1335,7 @@ function pn_getClientSequenceNumber() {
     global $tableNamePrefix;
     
 
-    $email = pn_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+    $email = pn_getEmailParam();
 
     if( $email == "" ) {
         $rawEmail = $_REQUEST[ "email" ];
@@ -1542,7 +1602,7 @@ function pn_checkClientSeqHash( $email ) {
 function pn_checkAndUpdateClientSeqNumber() {
     global $tableNamePrefix;
 
-    $email = pn_requestFilter( "email", "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+    $email = pn_getEmailParam();
 
     $trueSeq = pn_checkClientSeqHash( $email );
     
