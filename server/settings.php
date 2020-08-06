@@ -86,6 +86,10 @@ $accessPasswords = array( "8e409075ab35b161f6d2d57775e5efbee8d7b674",
                           "20e1883a3d63607b60677dca87b41e04316ffc63" );
 
 
+// for assigning end-user pass word sequences
+// replace this with your own secret string
+$passWordSelectionSecret = "83e0b8ff3bcc5861efd17dcc1990424be0a9ae61";
+
 
 
 // number of users shown per page in the browse view

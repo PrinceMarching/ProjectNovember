@@ -189,6 +189,9 @@ else if( $action == "update_page" ) {
 else if( $action == "delete_page" ) {
     pn_deletePage();
     }
+else if( $action == "delete_user" ) {
+    pn_deleteUser();
+    }
 else if( $action == "logout" ) {
     pn_logout();
     }
@@ -576,7 +579,7 @@ function pn_addUser() {
     $credits = pn_requestFilter( "credits", "/[0-9]+/i", 0 );
 
     
-    $pass_words = pn_generateRandomPasswordSequence();
+    $pass_words = pn_generateRandomPasswordSequence( $email );
     $fake_last_name = pn_generateRandomLastName();
     
 
@@ -734,6 +737,38 @@ function pn_deletePage() {
 
 
     echo "Page <b>$name</b> deleted.";
+    }
+
+
+
+function pn_deleteUser() {
+    pn_checkPassword( "delete_user" );
+
+    pn_showLinkHeader();
+
+    global $tableNamePrefix;
+    
+    $email = pn_getEmailParam();
+
+    if( $email == "" ) {
+        echo "Bad email.";
+        return;
+        }
+    $confirm = pn_requestFilter( "confirm", "/[0-1]/", "0" );
+
+    if( $confirm == 0 ) {
+        echo "Confirmation box not checked.";
+        return;
+        }
+
+    $query = "DELETE FROM $tableNamePrefix"."users ".
+        "WHERE email = '$email';";
+
+
+    $result = pn_queryDatabase( $query );
+
+
+    echo "User <b>$email</b> deleted.";
     }
 
 
@@ -1044,6 +1079,18 @@ function pn_showDetail( $checkPassword = true ) {
     <INPUT TYPE="Submit" VALUE="Add">
     </FORM>
         </td>
+<?php
+
+
+             // form for deleting user
+?>
+        <hr>
+        <FORM ACTION="server.php" METHOD="post">
+        <INPUT TYPE="hidden" NAME="action" VALUE="delete_user">
+        <INPUT TYPE="hidden" NAME="email" VALUE="<?php echo $email;?>">
+    <INPUT TYPE="checkbox" NAME="confirm" VALUE=1> Confirm<br>      
+    <INPUT TYPE="Submit" VALUE="Delete User">
+    </FORM>
 <?php
 
     }
@@ -1629,24 +1676,95 @@ function pn_checkAndUpdateClientSeqNumber() {
 
 
 
-function pn_generateRandomPasswordSequence() {
+
+// convert a binary string into an ascii "1001011"-style string
+function pn_getBinaryDigitsString( $inBinaryString ) {
+    $binaryDigits = str_split( $inBinaryString );
+
+    // string of 0s and 1s
+    $binString = "";
+    
+    foreach( $binaryDigits as $digit ) {
+        $binDigitString = decbin( ord( $digit ) );
+
+        // pad with 0s
+        $binDigitString =
+            substr( "00000000", 0, 8 - strlen( $binDigitString ) ) .
+            $binDigitString;
+
+        $binString = $binString . $binDigitString;
+        }
+
+    // now have full string of 0s and 1s for $inBinaryString
+    return $binString;
+    } 
+
+
+
+function pn_getSecureRandomBoundedInt( $inMaxVal, $inSecret ) {
+    $bitsNeeded = ceil( log( $inMaxVal, 2 ) );
+
+    $intVal = $inMaxVal + 1;
+
+    while( $intVal > $inMaxVal ) {
+
+        // get enough digits to generate an int from it
+        $binString = "";
+        while( strlen( $binString ) < $bitsNeeded ) {
+            $randVal = rand();
+            
+            $hash_bin =
+                pn_hmac_sha1_raw( $inSecret,
+                                  uniqid( "$randVal", true ) );
+
+            $binString = $binString . pn_getBinaryDigitsString( $hash_bin );
+            }
+        $binString = substr( $binString, 0, $bitsNeeded );
+        $intVal = bindec( $binString );
+        }
+    
+    return $intVal;
+    }
+
+
+
+
+function pn_generateRandomPasswordSequence( $email ) {
+
     global $tableNamePrefix;
 
     $name = "";
 
     $numberOfWords = 4;
 
-    $query =
-        "SELECT GROUP_CONCAT( temp.noun SEPARATOR ' ' ) AS random_name ".
-        "FROM ( SELECT noun FROM $tableNamePrefix"."random_nouns ".
-        "       ORDER BY RAND() LIMIT $numberOfWords ) AS temp;";
-    
-    $result = pn_queryDatabase( $query );
+    $words = array();
 
-    $name = pn_mysqli_result( $result, 0, 0 );
+    global $passWordSelectionSecret;
+
+    $query = "SELECT COUNT(*) from $tableNamePrefix"."random_nouns;";
+    $result = pn_queryDatabase( $query );
+    $totalNouns = pn_mysqli_result( $result, 0, 0 );
+
     
-    return $name;
+    while( count( $words ) < $numberOfWords ) {
+                    
+        $pick = pn_getSecureRandomBoundedInt(
+            $totalNouns - 1,
+            $email . $passWordSelectionSecret );
+        
+        $query = "SELECT noun from $tableNamePrefix"."random_nouns ".
+            "limit $pick, 1;";
+        $result = pn_queryDatabase( $query );
+        $noun = pn_mysqli_result( $result, 0, 0 );
+
+        $words[] = $noun;
+        }
+
+    
+    return join( " ", $words );
     }
+
+
 
 
 function pn_generateRandomLastName() {
