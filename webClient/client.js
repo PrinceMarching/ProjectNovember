@@ -703,14 +703,68 @@ function doKeyDown( e ) {
 		}
 	}
 	else if( e.keyCode == 37 ) {
-		liveTypedCursorOffset --;
+		// left arrow
+		if( e.ctrlKey ) {
+			// jump back over run of spaces
+			while( liveTypedCursorOffset > 0 &&
+				   liveTypedCommand.substring( liveTypedCursorOffset,
+											   liveTypedCursorOffset + 1 )
+				   == " " ) {
+				liveTypedCursorOffset--;
+				}
+			if( liveTypedCursorOffset > 0 ) {
+				// jump by whole word
+				let spacePos = 
+					liveTypedCommand.
+					substring( 0, liveTypedCursorOffset ).
+					lastIndexOf( " " );
+				if( spacePos != -1 ) {
+					liveTypedCursorOffset = spacePos;
+				}
+				else {
+					// jump all the way to beginning
+					liveTypedCursorOffset = 0;
+				}
+			}
+		}
+		else {
+			// single char
+			liveTypedCursorOffset --;
+		}
 		if( liveTypedCursorOffset < 0 ) {
 			liveTypedCursorOffset = 0;
 		}
 		resetCursorFlash();
 	}
 	else if( e.keyCode == 39 ) {
-		liveTypedCursorOffset++;
+		// right arrow
+		if( e.ctrlKey ) {
+			
+			while( liveTypedCursorOffset < liveTypedCommand.length &&
+				   liveTypedCommand.substring( liveTypedCursorOffset,
+											   liveTypedCursorOffset + 1 )
+				   == " " ) {
+				liveTypedCursorOffset++;
+				}
+
+			if( liveTypedCursorOffset < liveTypedCommand.length ) {
+				// jump by whole word
+				let spacePos = 
+					liveTypedCommand.
+					substring( liveTypedCursorOffset + 1 ).
+					indexOf( " " );
+				if( spacePos != -1 ) {
+					liveTypedCursorOffset += spacePos + 1;
+				}
+				else {
+					// jump all the way to end
+					liveTypedCursorOffset = liveTypedCommand.length;
+				}
+			}
+		}
+		else {
+			liveTypedCursorOffset++;
+		}
 		if( liveTypedCursorOffset > liveTypedCommand.length ) {
 			liveTypedCursorOffset = liveTypedCommand.length;
 			}
