@@ -425,7 +425,6 @@ function pn_setupDatabase() {
             "fake_last_name VARCHAR(20) NOT NULL," .
             "credits int NOT NULL," .
             "current_page VARCHAR(254) NOT NULL," .
-            "conversation_buffer TEXT NOT NULL,".
             // for use with client connections
             "client_sequence_number INT NOT NULL );";
 
@@ -482,7 +481,8 @@ function pn_setupDatabase() {
             "user_id INT UNSIGNED NOT NULL," .
             "page_name VARCHAR(254) NOT NULL,".
             "index( page_name ),".
-            "ai_age INT UNSIGNED NOT NULL );";
+            "ai_age INT UNSIGNED NOT NULL,".
+            "conversation_buffer TEXT NOT NULL );";
         
         $result = pn_queryDatabase( $query );
 
