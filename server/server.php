@@ -176,7 +176,7 @@ else if( $action == "show_pages" ) {
     pn_showPages();
     }
 else if( $action == "add_page" ) {
-    pn_addPage();
+    pn_updatePage( true );
     }
 else if( $action == "new_page" ) {
     pn_newPage();
@@ -185,7 +185,7 @@ else if( $action == "edit_page" ) {
     pn_editPage();
     }
 else if( $action == "update_page" ) {
-    pn_updatePage();
+    pn_updatePage( false );
     }
 else if( $action == "delete_page" ) {
     pn_deletePage();
@@ -230,6 +230,7 @@ else if( preg_match( "/server\.php/", $_SERVER[ "SCRIPT_NAME" ] ) ) {
         pn_doesTableExist( $tableNamePrefix . "last_names" ) &&
         pn_doesTableExist( $tableNamePrefix . "users" ) &&
         pn_doesTableExist( $tableNamePrefix . "pages" ) &&
+        pn_doesTableExist( $tableNamePrefix . "owned_ai" ) &&
         pn_doesTableExist( $tableNamePrefix . "log" );
     
         
@@ -424,6 +425,7 @@ function pn_setupDatabase() {
             "fake_last_name VARCHAR(20) NOT NULL," .
             "credits int NOT NULL," .
             "current_page VARCHAR(254) NOT NULL," .
+            "conversation_buffer TEXT NOT NULL,".
             // for use with client connections
             "client_sequence_number INT NOT NULL );";
 
@@ -447,7 +449,40 @@ function pn_setupDatabase() {
             "display_text TEXT NOT NULL,".
             "display_color VARCHAR(10) NOT NULL,".
             "prompt_color VARCHAR(10) NOT NULL,".
-            "dest_names TEXT NOT NULL )";
+            "dest_names TEXT NOT NULL,".
+            // these columns for AI pages
+            // which must have "name" field that start with AI_
+            "ai_name VARCHAR(30) NOT NULL,".
+            "ai_cost int NOT NULL,".
+            // what comes before AI's response when chatting with it
+            // like "Computer: "
+            "ai_response_label VARCHAR(30) NOT NULL,".
+            // how many responses before complete
+            // corruption
+            "ai_longevity int NOT NULL,".
+            // name of protocol used to get AI response
+            "ai_protocol TEXT NOT NULL )";
+        
+        $result = pn_queryDatabase( $query );
+
+        echo "<B>$tableName</B> table created<BR>";
+        }
+    else {
+        echo "<B>$tableName</B> table already exists<BR>";
+        }
+
+
+    // owned AI pages per user
+    $tableName = $tableNamePrefix . "owned_ai";
+    if( ! pn_doesTableExist( $tableName ) ) {
+
+        $query =
+            "CREATE TABLE $tableName(" .
+            "id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT," .
+            "user_id INT UNSIGNED NOT NULL," .
+            "page_name VARCHAR(254) NOT NULL,".
+            "index( page_name ),".
+            "ai_age INT UNSIGNED NOT NULL );";
         
         $result = pn_queryDatabase( $query );
 
@@ -608,73 +643,20 @@ function pn_parseNameParam() {
     return pn_requestFilter( "name", "/[A-Z0-9_]+/i", "" );
     }
 
-    
-
-
-function pn_addPage() {
-    pn_checkPassword( "add_page" );
-
-    pn_showLinkHeader();
-
-    global $tableNamePrefix;
-    
-    $name = pn_parseNameParam();
-
-    if( $name == "" ) {
-        echo "Bad page name.";
-        return;
-        }
-
-    // no filtering
-    $body = $_REQUEST[ "body" ];
-    
-    global $pn_mysqlLink;
-    
-    $slashedBody = mysqli_real_escape_string( $pn_mysqlLink, $body );
-
-
-    $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,]+/i", "" );
-
-    $display_color = strtoupper(
-        pn_requestFilter( "display_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
-
-    $prompt_color = strtoupper(
-        pn_requestFilter( "prompt_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
-
-    
-    $query = "INSERT INTO $tableNamePrefix"."pages ".
-        "SET name = '$name', display_text = '$slashedBody', ".
-        "dest_names = '$dest_names', ".
-        "display_color = '$display_color', ".
-        "prompt_color = '$prompt_color' ;";
-
-
-    global $pn_mysqlLink;
-    // run query directly, so we can catch error
-    $result = mysqli_query( $pn_mysqlLink, $query );
-    
-    if( $result ) {
-        echo "Page '$name' created";
-        }
-    else {
-        echo "Page creation failed (duplicate page name?)";
-        }
-    }
 
 
 
 
-function pn_updatePage() {
+function pn_updatePage( $inCreateNewOnly ) {
     pn_checkPassword( "update_page" );
 
-    pn_showLinkHeader();
-
     global $tableNamePrefix;
 
     $name = pn_parseNameParam();
 
     if( $name == "" ) {
         echo "Bad page name.";
+        pn_showLinkHeader();
         return;
         }
 
@@ -694,17 +676,61 @@ function pn_updatePage() {
     $prompt_color = strtoupper(
         pn_requestFilter( "prompt_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
 
-    $query = "UPDATE $tableNamePrefix"."pages ".
-        "SET display_text = '$slashedBody', ".
-        "display_color = '$display_color',  ".
-        "prompt_color = '$prompt_color', ".
-        "dest_names = '$dest_names' WHERE name = '$name';";
+    $ai_name = pn_requestFilter( "ai_name", "/[A-Z0-9\- ]+/i", "" );
+    $ai_cost = pn_requestFilter( "ai_cost", "/[0-9]+/i", "0" );
+    $ai_response_label =
+        pn_requestFilter( "ai_response_label", "/[A-Z0-9\- :]+/i", "" );
+    $ai_longevity = pn_requestFilter( "ai_longevity", "/[0-9]+/i", "0" );
+    $ai_protocol = pn_requestFilter( "ai_protocol", "/[A-Z0-9\-_]+/i", "" );
 
 
-    $result = pn_queryDatabase( $query );
+    if( ! $inCreateNewOnly ) {
+        // update it
+        $query = "UPDATE $tableNamePrefix"."pages ".
+            "SET display_text = '$slashedBody', ".
+            "display_color = '$display_color',  ".
+            "prompt_color = '$prompt_color', ".
+            "ai_name = '$ai_name',".
+            "ai_cost = '$ai_cost',".
+            "ai_response_label = '$ai_response_label',".
+            "ai_longevity = '$ai_longevity',".
+            "ai_protocol = '$ai_protocol',".
+            "dest_names = '$dest_names' WHERE name = '$name';";
+        
+        
+        $result = pn_queryDatabase( $query );
 
 
-    echo "Page <b>$name</b> updated.";
+        echo "Page <b>$name</b> updated.";
+        }
+    else {
+        $query = "INSERT INTO $tableNamePrefix"."pages ".
+            "SET name = '$name', display_text = '$slashedBody', ".
+            "dest_names = '$dest_names', ".
+            "display_color = '$display_color', ".
+            "prompt_color = '$prompt_color',".
+            "ai_name = '$ai_name',".
+            "ai_cost = '$ai_cost',".
+            "ai_response_label = '$ai_response_label',".
+            "ai_longevity = '$ai_longevity',".
+            "ai_protocol = '$ai_protocol';";
+
+        
+        global $pn_mysqlLink;
+        // run query directly, so we can catch error
+        $result = mysqli_query( $pn_mysqlLink, $query );
+        
+        if( $result ) {
+            echo "Page <b>$name</b> created";
+            }
+        else {
+            pn_showLinkHeader();
+            echo "Page creation failed (duplicate page name?)";
+            return;
+            }
+        }
+    
+    pn_editPage();
     }
 
 
@@ -1145,6 +1171,37 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
         }
 
     $body = preg_replace( "/\r\n/", "&#13;", $body );
+
+    $ai_name = "";
+    $ai_cost = 0;
+    $ai_response_label = "";
+    $ai_longevity = 0;
+    $ai_protocol = "";
+    
+    if( $name != "" ) {
+        // existing page
+        // pull AI values from table
+        global $tableNamePrefix;
+        
+        $query = "SELECT ai_name, ai_cost, ai_response_label,".
+            "ai_longevity, ai_protocol FROM $tableNamePrefix"."pages ".
+            "WHERE name='$name';";
+        
+        $result = pn_queryDatabase( $query );
+    
+        $numRows = mysqli_num_rows( $result );
+        
+        if( $numRows == 1 ) {
+        
+            $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
+            $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
+            $ai_response_label =
+                pn_mysqli_result( $result, 0, "ai_response_label" );
+            $ai_longevity = pn_mysqli_result( $result, 0, "ai_longevity" );
+            $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
+            }
+        }
+    
     
 ?>
     <FORM ACTION="server.php" METHOD="post">
@@ -1163,6 +1220,23 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
          Dest pages:
     <INPUT TYPE="text" MAXLENGTH=80 SIZE=40 NAME="dest_names"
         value='<?php echo $dest_names;?>'><br>
+<table border=0 cellpadding=10><tr><td bgcolor="#eeeeee">
+        AI Name:
+    <INPUT TYPE="text" MAXLENGTH=30 SIZE=10 NAME="ai_name"
+        value='<?php echo $ai_name;?>'>
+         AI Cost:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=4 NAME="ai_cost"
+        value='<?php echo $ai_cost;?>'><br>
+         AI Response Label:
+    <INPUT TYPE="text" MAXLENGTH=30 SIZE=10 NAME="ai_response_label"
+        value='<?php echo $ai_response_label;?>'>
+         AI Longevity:
+    <INPUT TYPE="text" MAXLENGTH=10 SIZE=4 NAME="ai_longevity"
+        value='<?php echo $ai_longevity;?>'><br>
+        AI protocol:
+    <INPUT TYPE="text" MAXLENGTH=30 SIZE=10 NAME="ai_protocol"
+        value='<?php echo $ai_protocol;?>'><br>
+</td></tr></table>               
     <INPUT TYPE="Submit" VALUE="<?php echo $buttonName;?>">
     </FORM>
 <?php
@@ -1283,7 +1357,7 @@ function pn_newPage() {
 
 
 
-function pn_editPage( ) {
+function pn_editPage() {
     pn_checkPassword( "edit_page" );
     
     pn_showLinkHeader();
