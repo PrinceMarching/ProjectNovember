@@ -193,6 +193,12 @@ else if( $action == "delete_page" ) {
 else if( $action == "export_pages" ) {
     pn_exportPages();
     }
+else if( $action == "import_pages" ) {
+    pn_importPages();
+    }
+else if( $action == "show_import" ) {
+    pn_showImport();
+    }
 else if( $action == "delete_user" ) {
     pn_deleteUser();
     }
@@ -664,7 +670,7 @@ function pn_updatePage( $inCreateNewOnly ) {
         }
 
     // no filtering
-    $body = $body = $_REQUEST[ "body" ];
+    $body = $_REQUEST[ "body" ];
     
     global $pn_mysqlLink;
     
@@ -1338,6 +1344,7 @@ function pn_showPages() {
             }
         }
     echo "<hr><a href='server.php?action=export_pages'>Export Pages</a>";
+    echo "<hr><a href='server.php?action=show_import'>Import Pages</a>";
     }
 
 
@@ -1475,7 +1482,7 @@ function pn_exportPages() {
             }
         if( $y != $numRows - 1 ) {
             // more coming
-            $out = $out . "\n";
+            $out = $out . "&\n";
             }
         }
     header('Content-Type: text/plain');
@@ -1483,6 +1490,65 @@ function pn_exportPages() {
     }
 
     
+
+function pn_showImport() {
+    pn_checkPassword( "show_import" );
+    
+    pn_showLinkHeader();
+?>
+    Import pages:
+        <FORM ACTION="server.php" METHOD="post">
+        <INPUT TYPE="hidden" NAME="action" VALUE="import_pages">
+    <textarea name="text" rows="20" cols="40"></textarea><br>
+      
+    <INPUT TYPE="Submit" VALUE="Import">
+    </FORM>
+<?php
+    
+    }
+
+
+function pn_importPages() {
+    pn_checkPassword( "export_pages" );
+
+    global $tableNamePrefix;
+
+    // no filtering
+    $text = $_REQUEST[ "text" ];
+
+
+    // remove all whitespace (various line ends)
+    $text = preg_replace('/\s+/', '', $text );
+
+    $lines = preg_split( "/&/", $text );
+
+    $numImported = 0;
+    
+    foreach( $lines as $line ) {
+
+        $parts = preg_split( "/,/", $line );
+
+        $numParts = count( $parts );
+        
+        for( $i=0; $i < $numParts; $i++ ) {
+            $parts[$i] = '"' . addslashes( urldecode( $parts[$i] ) ) . '"';
+            }
+        $valueLine = join( ",", $parts );
+        
+        $query = "REPLACE INTO $tableNamePrefix"."pages ".
+            "VALUES ( $valueLine );";
+        pn_queryDatabase( $query );
+
+        $numImported ++;
+        }
+
+
+    echo "Imported <b>$numImported</b> pages<br>";
+
+    pn_showPages();
+    }
+
+
 
 
 
