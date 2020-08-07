@@ -170,19 +170,44 @@ function drawCursor( inX, inY, inCTX ) {
 }
 
 
-function longLineSplitter( inString, maxLength ){
+function longLineSplitter( inString, maxLength ) {
     var strs = [];
     while( inString.length > maxLength ) {
-        var pos = inString.substring( 0, maxLength).lastIndexOf(' ');
-        pos = pos <= 0 ? maxLength : pos;
+		let pos = -1;
+		let targetLength = maxLength;
+		let maxPossibleLenth = inString.length;
+
+		// look at longer and longer string until we find a space
+		while( pos == -1 && targetLength < maxPossibleLenth ) {
+			pos = inString.substring( 0, targetLength ).lastIndexOf(' ');
+			
+			if( pos == -1 ) {
+				targetLength ++;
+			}
+		}
+
+		if( pos == -1 ) {
+			pos = inString.length - 1;
+			}
+
 		// leave trailing space at end
-        strs.push( inString.substring( 0, pos + 1 ) );
-        var i = inString.indexOf( ' ', pos ) + 1;
-        if( i < pos || i > pos + maxLength )
-            i = pos;
-        inString = inString.substring( i );
+		
+		strs.push( inString.substring( 0, pos + 1 ) );
+        
+		if( pos + 1 != inString.length ) {
+			// keep working on rest
+			inString = inString.substring( pos + 1 );
+			}
+		else {
+			// done
+			inString = "";
+		}
     }
-    strs.push( inString );
+	if( inString != "" || strs.length == 0 ) {
+		// don't push a left-over empty string
+		// unless it's our only string (asked to split an empty string)
+		strs.push( inString );
+	}
     return strs;
 }
 
@@ -359,7 +384,9 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 	}
 	else if( ! inIsExport ) {
 		// hide prompt and what user is typing down at bottom during export
-		
+
+		let fullCommandLength = liveTypedCommand.length;
+
 		commandLines = splitCommandLines( inCanvas );
 
 		drawY = inCanvas.height - 2 * fontSpacingV;
@@ -388,8 +415,12 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 				let oldCharDrawnI = charDrawnI;
 				charDrawnI += line.length;
 				
-				if( numLines == 1 ||
-					( charDrawnI >= liveTypedCursorOffset &&
+				if( numLines == 1
+					||
+					( lineI == numLines - 1 
+					  && liveTypedCursorOffset == fullCommandLength )
+					||
+					( charDrawnI > liveTypedCursorOffset &&
 					  oldCharDrawnI <= liveTypedCursorOffset ) ) {
 					// cursor on this line!
 					let cursorLineOffset = 
