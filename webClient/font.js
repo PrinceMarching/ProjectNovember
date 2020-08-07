@@ -6,8 +6,9 @@ var baseFontSpacingH = 17;
 var baseFontSpacingV = 40;
 
 
-fontPaths = [ 'font_computer.png', 'font_corrupt.png' ];
-fontEachLoaded = [ false, false ];
+fontPaths = [ 'font_computer.png', 'font_corrupt.png', 
+			  'font_computer_inv.png' ];
+fontEachLoaded = [ false, false, false ];
 var fontImgs = [];
 
 

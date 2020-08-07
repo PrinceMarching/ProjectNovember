@@ -62,7 +62,10 @@ var scanLinesLoaded = false;
 var vignetteLoaded = false;
 
 function drawString( inString, inX, inY, inCTX,
-					 inColor = "#FFFFFF", inCorruptionFlags = [] ) {
+					 inColor = "#FFFFFF", inCorruptionFlags = [], 
+					 // if inv font, non-corrupted characters are drawn
+					 // with index-2 font (inverted)
+					 inInvFont = false ) {
 	if( ! getFontLoaded() ) {
 		return;
 	}
@@ -74,6 +77,11 @@ function drawString( inString, inX, inY, inCTX,
 		corruptionFont = getColoredFont( inColor, 1 );
 	}
 
+	var invFont = font;
+	if( inInvFont ) {
+		invFont = getColoredFont( inColor, 2 );
+	}
+
 	var drawIndex = 0;
 	var a = Array.from( inString );
 	var x = inX;
@@ -82,12 +90,19 @@ function drawString( inString, inX, inY, inCTX,
 			var i = c.charCodeAt( 0 );
 			
 			var f = font[ i ];
-			
+			let cor = false;
+
 			if( inCorruptionFlags.length > drawIndex ) {
 				if( inCorruptionFlags[drawIndex] ) {
 					f = corruptionFont[ i ];
+					cor = true;
 				}
 			}
+			
+			if( inInvFont && ! cor ) {
+				f = invFont[ i ];
+			}
+
 			inCTX.drawImage( f, x, inY, 
 							 f.width * drawScale, f.height * drawScale );
 			x += fontSpacingH;
@@ -133,6 +148,16 @@ function drawCursor( inX, inY, inCTX ) {
 		drawString( "|", inX + 1 * drawScale, inY, inCTX, promptColor );
 		drawString( "|", inX + 4 * drawScale, inY, inCTX, promptColor );
 		drawString( "|", inX + 6 * drawScale, inY, inCTX, promptColor );
+
+		if( liveTypedCommand.length > 0 && 
+			liveTypedCursorOffset < liveTypedCommand.length ) {
+			// cursor over a character
+			// draw inverted character on top
+			// inv font with black color
+			drawString( liveTypedCommand.substring( liveTypedCursorOffset,
+													liveTypedCursorOffset + 1 ),
+						inX, inY, inCTX, "#000000", [], true );
+		}
 	}
 	else {
 		// else skip drawing
