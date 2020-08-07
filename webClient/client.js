@@ -731,13 +731,15 @@ function doKeyDown( e ) {
 		// left arrow
 		if( e.ctrlKey ) {
 			// jump back over run of spaces
+			let numSpacesJumped = 0;
 			while( liveTypedCursorOffset > 0 &&
-				   liveTypedCommand.substring( liveTypedCursorOffset,
-											   liveTypedCursorOffset + 1 )
+				   liveTypedCommand.substring( liveTypedCursorOffset - 1,
+											   liveTypedCursorOffset )
 				   == " " ) {
 				liveTypedCursorOffset--;
-				}
-			if( liveTypedCursorOffset > 0 ) {
+				numSpacesJumped ++;
+			}
+			if( numSpacesJumped < 1 && liveTypedCursorOffset > 0 ) {
 				// jump by whole word
 				let spacePos = 
 					liveTypedCommand.
@@ -764,15 +766,17 @@ function doKeyDown( e ) {
 	else if( e.keyCode == 39 ) {
 		// right arrow
 		if( e.ctrlKey ) {
-			
+			let numSpacesJumped = 0;
 			while( liveTypedCursorOffset < liveTypedCommand.length &&
 				   liveTypedCommand.substring( liveTypedCursorOffset,
 											   liveTypedCursorOffset + 1 )
 				   == " " ) {
 				liveTypedCursorOffset++;
+				numSpacesJumped ++;
 				}
 
-			if( liveTypedCursorOffset < liveTypedCommand.length ) {
+			if( numSpacesJumped < 2 && 
+				liveTypedCursorOffset < liveTypedCommand.length ) {
 				// jump by whole word
 				let spacePos = 
 					liveTypedCommand.
@@ -785,6 +789,10 @@ function doKeyDown( e ) {
 					// jump all the way to end
 					liveTypedCursorOffset = liveTypedCommand.length;
 				}
+			}
+			else if( numSpacesJumped >= 2 ) {
+				// back off to mimic behavior of left arrow and delete
+				liveTypedCursorOffset--;
 			}
 		}
 		else {
