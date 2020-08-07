@@ -795,6 +795,17 @@ function doKeyDown( e ) {
 			}
 		resetCursorFlash();
 	}
+	else if( e.keyCode == 35 ) {
+		// end
+		liveTypedCursorOffset = liveTypedCommand.length;
+		resetCursorFlash();
+		}
+	else if( e.keyCode == 36 ) {
+		// home
+		liveTypedCursorOffset = 0;
+		resetCursorFlash();
+		}
+	
 	redrawNow();
 }
 
