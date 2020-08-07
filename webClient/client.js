@@ -651,9 +651,34 @@ function doKeyDown( e ) {
 			liveTypedCommand = "";
 			
 			if( beforeCursor.length > 0 ) {
+				let numToEat = 1;
+				if( e.ctrlKey ) {
+					// eat a whole word
+					let numSpacesEaten = 0;
+					numToEat = 0;
+					while( beforeCursor.length > numToEat &&
+						   beforeCursor.substring( beforeCursor.length - 
+												   numToEat - 1,
+												   beforeCursor.length -
+												   numToEat ) == " " ) {
+						numToEat ++;
+						numSpacesEaten ++;
+					}
+					if( numSpacesEaten == 0 ) {
+						// eat word
+						while( beforeCursor.length > numToEat &&
+							   beforeCursor.substring( beforeCursor.length - 
+													   numToEat,
+													   1 + beforeCursor.length -
+													   numToEat ) != " " ) {
+							numToEat ++;
+						}
+					}
+												 
+				}
 				liveTypedCommand = 
-					beforeCursor.substring( 0, beforeCursor.length - 1 );
-				liveTypedCursorOffset --;
+					beforeCursor.substring( 0, beforeCursor.length - numToEat );
+				liveTypedCursorOffset -= numToEat;
 			}
 			liveTypedCommand = liveTypedCommand.concat( afterCursor );
 		}
