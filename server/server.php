@@ -190,6 +190,9 @@ else if( $action == "update_page" ) {
 else if( $action == "delete_page" ) {
     pn_deletePage();
     }
+else if( $action == "export_pages" ) {
+    pn_exportPages();
+    }
 else if( $action == "delete_user" ) {
     pn_deleteUser();
     }
@@ -1334,6 +1337,7 @@ function pn_showPages() {
             "<a href='server.php?action=new_page&name=$name'>$name</a><br><br>";
             }
         }
+    echo "<hr><a href='server.php?action=export_pages'>Export Pages</a>";
     }
 
 
@@ -1437,6 +1441,45 @@ function pn_pageExists( $name ) {
         return true;
         }
     return false;
+    }
+
+
+
+
+function pn_exportPages() {
+    pn_checkPassword( "export_pages" );
+
+    global $tableNamePrefix;
+    $query = "SELECT * ".
+        "FROM $tableNamePrefix"."pages;";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    $numCols = mysqli_num_fields( $result );
+
+    $out = "";
+    
+    for( $y=0; $y<$numRows; $y++ ) {
+        for( $x=0; $x<$numCols; $x++ ) {
+        
+            $val = pn_mysqli_result( $result, $y, $x );
+
+            $encVal = urlencode( $val );
+
+            if( $x > 0 ) {
+                $out = $out . "," . $encVal;
+                }
+            else {
+                $out = $out . $encVal;
+                }
+            }
+        if( $y != $numRows - 1 ) {
+            // more coming
+            $out = $out . "\n";
+            }
+        }
+    header('Content-Type: text/plain');
+    echo $out;
     }
 
     
