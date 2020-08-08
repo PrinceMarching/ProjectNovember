@@ -123,11 +123,15 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 
 
-$requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login" );
+$requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
+                        "main", "owned" );
 
 
-$replacableStrings = array( "%LAST_NAME%" => "fake_last_name",
-                            "%CREDITS%" => "credits" );
+$replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
+                                "%CREDITS%" => "credits" );
+
+$replacableAIStrings = array( "%AI_OWNED_LIST%" => "",
+                              "%AI_OWNED_LIST_AFTER%" => "" );
 
 
 
@@ -153,6 +157,9 @@ else if( $action == "login" ) {
     }
 else if( $action == "page" ) {
     pn_clientPage();
+    }
+else if( $action == "purchase_ai" ) {
+    pn_purchaseAI();
     }
 else if( $action == "show_log" ) {
     pn_showLog();
@@ -677,7 +684,7 @@ function pn_updatePage( $inCreateNewOnly ) {
     $slashedBody = mysqli_real_escape_string( $pn_mysqlLink, $body );
 
 
-    $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,]+/i", "" );
+    $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,_]+/i", "" );
 
     $display_color = strtoupper(
         pn_requestFilter( "display_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
@@ -1249,12 +1256,15 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
     <INPUT TYPE="Submit" VALUE="<?php echo $buttonName;?>">
     </FORM>
 <?php
-
-    global $replacableStrings;
+     global $replacableUserStrings, $replacableAIStrings;
     
-    if( count( $replacableStrings ) > 0 ) {
+    if( count( $replacableUserStrings ) > 0 ||
+        count( $replacableAIStrings ) >  0 ) {
         echo "<br>Variables: ";
-        foreach( $replacableStrings as $s => $v ) {
+        foreach( $replacableUserStrings as $s => $v ) {
+            echo "$s ";
+            }
+        foreach( $replacableAIStrings as $s => $v ) {
             echo "$s ";
             }
         }
@@ -1311,7 +1321,7 @@ function pn_showPages() {
         $destParts = preg_split( "/,/", $dest_names ); 
 
         foreach( $destParts as $p ) {
-            if( array_search( $p, $linkedPages ) === FALSE ) {
+            if( $p != "" && array_search( $p, $linkedPages ) === FALSE ) {
                 $linkedPages[] = $p;
                 }
             }
@@ -1323,6 +1333,14 @@ function pn_showPages() {
         $name = pn_mysqli_result( $result, $i, "name" );
 
         pn_arrayRemoveByValue( $missingLinkedPages, $name );
+        }
+
+    // trigger dest names shouldn't be listed
+    foreach( $missingLinkedPages as $name ) {
+        if( preg_match( "/talk_AI/i", $name ) ||
+            preg_match( "/purchase_AI/i", $name ) ) {
+            pn_arrayRemoveByValue( $missingLinkedPages, $name );
+            }        
         }
 
     
@@ -1404,7 +1422,9 @@ function pn_editPage() {
         $destParts = preg_split( "/,/", $dest_names );
         
         foreach( $destParts as $n ) {
-            if( $n != "" ) {
+            if( $n != "" &&
+                ! preg_match( "/talk_AI/i", $n ) &&
+                ! preg_match( "/purchase_AI/i", $n ) ) {
                 
                 if( pn_pageExists( $n ) ) {
                     
@@ -1417,6 +1437,28 @@ function pn_editPage() {
                     }
                 }
             }
+
+        echo "<hr>Pages that link here:<br><br>";
+        $query = "SELECT name, dest_names ".
+            "FROM $tableNamePrefix"."pages;";
+        $result = pn_queryDatabase( $query );
+        
+        $numRows = mysqli_num_rows( $result );
+        for( $i=0; $i<$numRows; $i++ ) {
+            $otherName = pn_mysqli_result( $result, $i, "name" );
+            $otherDest_names = pn_mysqli_result( $result, $i, "dest_names" );
+
+            $dest = preg_split( "/,/", $otherDest_names );
+            foreach( $dest as $d ) {
+                if( $d == $name ) {
+                    echo "<a href='server.php?".
+                        "action=edit_page&name=$otherName'>".
+                        "$otherName</a><br><br>";
+                    }
+                }
+            }
+        
+                
 ?>
         <hr>
         <FORM ACTION="server.php" METHOD="post">
@@ -1649,6 +1691,9 @@ function pn_clientPage() {
 
     $command = pn_requestFilter( "client_command", "/[0-9]+/i", "" );
 
+
+    $user_id = pn_getUserID( $email );
+    
     
     global $tableNamePrefix;
     
@@ -1666,6 +1711,35 @@ function pn_clientPage() {
 
     $destList = preg_split( "/,/", $dest_names );
 
+    $newDestList = array();
+
+    foreach( $destList as $n ) {
+        if( $n == "talk_AI" ) {
+            $query = "SELECT id from $tableNamePrefix"."owned_ai ".
+                "WHERE user_id = '$user_id';";
+            
+            $result = pn_queryDatabase( $query );
+    
+            $numRows = mysqli_num_rows( $result );
+
+            if( $numRows > 0 ) {
+                
+                for( $i=0; $i<$numRows; $i++ ) {
+                    $id = pn_mysqli_result( $result, $i, "id" );
+
+                    $newDestList[] = "talk_AI_$id";
+                    }
+                }
+            }
+        else {
+            $newDestList[] = $n;
+            }
+        }
+
+    $destList = $newDestList;
+    
+
+    
     if( count( $destList ) > 1 ) {
     
         if( $command != "" &&
@@ -1673,7 +1747,16 @@ function pn_clientPage() {
             
             $pickedName = $destList[ $command - 1 ];            
 
-            if( pn_pageExists( $pickedName ) ) {
+            if( preg_match( "/talk_AI_/", $pickedName ) ) {
+                // special case
+                // initiate talk
+                }
+            else if( preg_match( "/purchase_AI/", $pickedName ) ) {
+                // special case
+                // show purchase confirmation page
+                pn_showPurchaseConfirmation( $email, $pickedName );
+                }
+            else if( pn_pageExists( $pickedName ) ) {
                 pn_standardResponseForPage( $email, $pickedName );
                 }
             else {
@@ -1700,6 +1783,71 @@ function pn_clientPage() {
     }
 
 
+function pn_getUserID( $email ) {
+    global $tableNamePrefix;
+    
+    
+    $query = "SELECT id ".
+            "FROM $tableNamePrefix"."users WHERE email='$email';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+        return pn_mysqli_result( $result, 0, "id" );
+        }
+    return -1;
+    }
+
+
+
+function pn_getUserCredits( $email ) {
+    global $tableNamePrefix;
+    
+    
+    $query = "SELECT credits ".
+            "FROM $tableNamePrefix"."users WHERE email='$email';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+        return pn_mysqli_result( $result, 0, "credits" );
+        }
+    return 0;
+    }
+
+
+
+function pn_spendUserCredits( $email, $credits ) {
+    global $tableNamePrefix;
+    
+    
+    $query = "UPDATE $tableNamePrefix"."users ".
+        "SET credits = credits - $credits ".
+        "WHERE email='$email';";
+    $result = pn_queryDatabase( $query );
+    }
+
+
+
+
+function pn_getAIOwnedCount( $email, $aiPageName ) {
+    $user_id = pn_getUserID( $email );
+
+    global $tableNamePrefix;
+    
+    $query = "SELECT COUNT(*) FROM $tableNamePrefix"."owned_ai ".
+        "WHERE user_id = '$user_id' AND page_name = '$aiPageName';";
+    
+    $result = pn_queryDatabase( $query );
+    $ownedCount = pn_mysqli_result( $result, 0, 0 );
+
+    return $ownedCount;
+    }
+
+
+
 
 function pn_getPromptColorForPage( $inPageName ) {
     global $defaultPagePromptColor;
@@ -1709,7 +1857,7 @@ function pn_getPromptColorForPage( $inPageName ) {
     
     
     $query = "SELECT prompt_color ".
-            "FROM $tableNamePrefix"."pages WHERE name='$name';";
+            "FROM $tableNamePrefix"."pages WHERE name='$inPageName';";
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
@@ -1732,7 +1880,7 @@ function pn_standardHeaderForPage( $inPageName ) {
     echo "{}\n";
 
 
-    $prompt_color = pn_getPromptColorForPage();
+    $prompt_color = pn_getPromptColorForPage( $inPageName );
     
     // use prompt color for what user types being added to bottom
     echo "$prompt_color\n";
@@ -1755,7 +1903,7 @@ function pn_standardBadChoiceForPage( $inPageName,
                                       $inMessage = "INVALID SELECTION" ) {
     pn_standardHeaderForPage( $inPageName );
 
-    $prompt_color = pn_getPromptColorForPage();
+    $prompt_color = pn_getPromptColorForPage( $inPageName );
     
     echo "$prompt_color\n";
 
@@ -1764,6 +1912,159 @@ function pn_standardBadChoiceForPage( $inPageName,
     echo "[#FF0000] [$defaultPageCharMS] [0] [0] $inMessage";
     }
 
+
+
+
+function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
+
+    $prefix = "purchase_";
+
+    $aiPageName = substr( $purchasePageName, strlen( $prefix ) );
+    
+    
+    // next action
+    echo "purchase_ai\n";
+    // carried param
+    echo "$aiPageName\n";
+    // no typed display prefix
+    echo "{}\n";
+
+
+    global $defaultPagePromptColor;
+    
+    $prompt_color = $defaultPagePromptColor;
+    
+    // use prompt color for what user types being added to bottom
+    echo "$prompt_color\n";
+    
+    // don't clear
+    echo "0\n";
+
+
+    global $tableNamePrefix;
+    
+    $query = "SELECT * FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows == 1 ) {
+        $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
+        
+        if( $ai_cost > pn_getUserCredits( $email ) ) {
+            $pageText = "\n\n       INSUFFICIENT CREDITS!\n\n";
+            $pageText = $pageText . "Press ENTER to go back.";
+            }
+        else {
+            
+            $pageText = "\n\n       CONFIRM OPERATION\n\n";
+
+            $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
+            
+            
+            $pageText = $pageText . "About to spin up:  $ai_name\n";
+            $pageText = $pageText . "Spin will spend:   $ai_cost credits\n";
+            
+            $pageText = $pageText . "You have:          %CREDITS% credits\n\n";
+
+            $existCount = pn_getAIOwnedCount( $email, $aiPageName );
+
+            if( $existCount > 0 ) {
+                $instanceWord = "instances";
+                if( $existCount == 1 ) {
+                    $instanceWord = "instance";
+                    }
+                
+                $pageText = $pageText .
+                    "WARNING:  You already have $existCount $instanceWord of $ai_name spinning.\n\n";
+                }
+            
+                
+            
+            $pageText = $pageText . "Type \"confirm\" to execute spin.\n\n";
+            $pageText = $pageText . "Press ENTER to go back.\n";
+            }
+        }
+    else {
+        $pageText = "\n\n       MATRIX NOT FOUND!\n\n";
+        $pageText = $pageText . "Press ENTER to go back.";
+        }
+    
+    
+
+    
+    global $defaultPageCharMS, $defaultPageTextColor;
+    
+    $text = pn_formatTextAsLines( $email, $pageText, $defaultPageTextColor,
+                                  $defaultPageCharMS,
+                                  $prompt_color );
+    echo $text;
+    }
+
+
+
+function pn_purchaseAI() {
+    $email = pn_checkAndUpdateClientSeqNumber();
+
+    $aiPageName = pn_requestFilter( "carried_param", "/[A-Z0-9_]+/i", "" );
+
+    $command = strtoupper(
+        pn_requestFilter( "client_command", "/[A-Z]+/i", "" ) );
+
+
+    if( $command != "CONFIRM" ) {        
+        pn_standardResponseForPage( $email, "main" );
+        return;
+        }
+
+    // they shouldn't be able to get here without enough credits
+    // confirm page should bounce them
+    // but check to make sure (bounce them back to MAIN with no explain)
+    // since it's an unreachable state if they're not hacking
+    global $tableNamePrefix;
+    
+    $query = "SELECT * FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows == 1 ) {
+        $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
+        
+        if( $ai_cost > pn_getUserCredits( $email ) ) {
+            pn_standardResponseForPage( $email, "main" );
+            return;
+            }
+        else {
+            pn_spendUserCredits( $email, $ai_cost );
+            $user_id = pn_getUserID( $email );
+
+            $query = "INSERT INTO $tableNamePrefix"."owned_ai ".
+                "SET user_id = '$user_id',".
+                "page_name = '$aiPageName',".
+                "ai_age = '0',".
+                // pad initial buffer with display text
+                "conversation_buffer = '';";
+            
+            pn_queryDatabase( $query );
+
+            // show their owned list after purchase
+            pn_standardResponseForPage( $email, "owned" );
+            return;
+            }
+        }
+    else {
+        // ai_page not found?
+        // should never happen
+        // bounce them to MAIN
+        pn_standardResponseForPage( $email, "main" );
+        return;
+        }
+    }
 
 
 
@@ -2001,16 +2302,57 @@ function pn_replaceVarsInLine( $email, $inLine ) {
         return $inLine;
         }
 
-    global $replacableStrings;
+    global $replacableUserStrings;
     
-    foreach( $replacableStrings as $v => $c ) {
+    foreach( $replacableUserStrings as $v => $c ) {
 
         $cValue =  pn_mysqli_result( $result, 0, "$c" );
 
         $inLine = preg_replace( "/$v/", $cValue, $inLine );
         }
     
+    if( substr_count( $inLine, "%" ) == 0 ) {
+        // no vars left in this line
+        return $inLine;
+        }
+    //return $inLine;
     
+    $user_id =  pn_mysqli_result( $result, 0, "id" );
+
+    
+    // else replace AI vars
+    $query = "SELECT * from $tableNamePrefix"."owned_ai as owned_ai ".
+        "INNER JOIN $tableNamePrefix"."pages AS pages ".
+        "ON owned_ai.page_name = pages.name ".
+        "WHERE owned_ai.user_id = '$user_id';";
+
+    $after = 1;
+    $listText = "";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        $after = $numRows + 1;
+
+        for( $i=0; $i<$numRows; $i++ ) {
+            $age = pn_mysqli_result( $result, $i, "age" );
+            $ai_name = pn_mysqli_result( $result, $i, "ai_name" );
+            $ai_longevity = pn_mysqli_result( $result, $i, "ai_longevity" );
+
+            $fractionLeft = 1.0 - $age / $ai_longevity;
+            $percentLeft = round( $fractionLeft * 100 );
+            $menuNumber = $i + 1;
+
+            $listText = $listText . " $menuNumber. $ai_name ($percentLeft%)\n";
+            }
+        }
+
+    
+    $inLine = preg_replace( "/%AI_OWNED_LIST%/", $listText, $inLine );    
+    $inLine = preg_replace( "/%AI_OWNED_LIST_AFTER%/", $after, $inLine );    
+        
     return $inLine;
     }
 
@@ -2037,20 +2379,37 @@ function pn_formatPageLines( $email, $inPageName ) {
 
         $lines = preg_split( "/\n/", $display_text );
 
-        $result = "$prompt_color";
-
-        foreach( $lines as $line ) {
-            $line = pn_replaceVarsInLine( $email, $line );
-            
-            $result = $result .
-                "\n[$display_color] [$defaultPageCharMS] [0] [0] $line";
-            }
+        $result = pn_formatTextAsLines( $email, $display_text, $display_color,
+                                        $defaultPageCharMS, $prompt_color );
         
         return $result;
         }
     else {
         return "";
         }    
+    }
+
+
+
+function pn_formatTextAsLines( $email, $text, $display_color, $char_ms,
+                               $prompt_color ) {
+    $lines = preg_split( "/\n/", $text );
+    
+    $result = "$prompt_color";
+    
+    foreach( $lines as $line ) {
+        $line = pn_replaceVarsInLine( $email, $line );
+
+        // it might come out of the replacement process as multiple lines
+        $subLines = preg_split( "/\n/", $line );
+
+        foreach( $subLines as $s ) {
+            $result = $result .
+                "\n[$display_color] [$char_ms] [0] [0] $s";
+            }
+        }
+        
+    return $result;
     }
 
 
