@@ -1750,6 +1750,9 @@ function pn_clientPage() {
             if( preg_match( "/talk_AI_/", $pickedName ) ) {
                 // special case
                 // initiate talk
+                
+                // FIXME
+                // initiate talking to AI here
                 }
             else if( preg_match( "/purchase_AI/", $pickedName ) ) {
                 // special case
