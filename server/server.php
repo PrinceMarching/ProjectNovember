@@ -124,7 +124,7 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
-                        "main", "owned", "error" );
+                        "main", "owned", "error", "matrix_dead" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
@@ -2247,6 +2247,18 @@ function pn_talkAI() {
 
     $aiDone = false;
 
+    if( $ai_age >= $ai_longevity ) {
+
+        // delete the dead matrix
+        $query = "DELETE FROM $tableNamePrefix"."owned_ai ".
+            "WHERE id = '$aiOwnedID' ";
+        pn_queryDatabase( $query );
+        
+        pn_standardResponseForPage( $email, "matrix_dead" );
+        return;
+        }
+
+    
     $aiResponse = "";
 
     $responseCost = 0;
