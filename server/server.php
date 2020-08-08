@@ -162,6 +162,9 @@ else if( $action == "page" ) {
 else if( $action == "purchase_ai" ) {
     pn_purchaseAI();
     }
+else if( $action == "talk_ai" ) {
+    pn_talkAI();
+    }
 else if( $action == "show_log" ) {
     pn_showLog();
     }
@@ -682,7 +685,7 @@ function pn_updatePage( $inCreateNewOnly ) {
     
     global $pn_mysqlLink;
     
-    $slashedBody = mysqli_real_escape_string( $pn_mysqlLink, $body );
+    $slashedBody = pn_mysqlEscape( $body );
 
 
     $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,_]+/i", "" );
@@ -1551,6 +1554,14 @@ function pn_showImport() {
     }
 
 
+
+function pn_mysqlEscape( $inString ) {
+    global $pn_mysqlLink;
+    return mysqli_real_escape_string( $pn_mysqlLink, $inString );
+    }
+
+
+
 function pn_importPages() {
     pn_checkPassword( "export_pages" );
 
@@ -1574,7 +1585,7 @@ function pn_importPages() {
         $numParts = count( $parts );
         
         for( $i=0; $i < $numParts; $i++ ) {
-            $parts[$i] = '"' . addslashes( urldecode( $parts[$i] ) ) . '"';
+            $parts[$i] = '"' . pn_mysqlEscape( urldecode( $parts[$i] ) ) . '"';
             }
         $valueLine = join( ",", $parts );
         
@@ -2130,16 +2141,17 @@ function pn_initiateTalkAI( $email, $pickedName ) {
         // seed it with AI page text
         pn_addToConversationBuffer( $aiOwnedID, $display_text );
         }
-    
+
+    global $humanTypedPrefix;
     
     
     
     // next action
     echo "talk_ai\n";
     // carried param
-    echo "$aiPageName\n";
+    echo "$aiOwnedID\n";
     // Prefix what human types
-    echo "{Human: }\n";
+    echo "{" . $humanTypedPrefix . "}\n";
 
 
     $prompt_color =
@@ -2158,17 +2170,342 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     }
 
 
+function pn_talkAI() {
+    set_time_limit( 120 );
+    
+    $email = pn_checkAndUpdateClientSeqNumber();
 
-function pn_addToConversationBuffer( $aiOwnedID, $inText ) {
-    $inText = addslashes( $inText );
+    $aiOwnedID = pn_requestFilter( "carried_param", "/[0-9]+/i", "0" );
 
     global $tableNamePrefix;
     
-    $query = "UPDATE $tableNamePrefix"."owned_ai ".
-        "SET conversation_buffer = concat( conversation_buffer, '$inText' ) ".
+    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
         "WHERE id = '$aiOwnedID';";
 
     $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows != 1 ) {
+        // owned ai doesn't exist
+        pn_showErrorPage( $email, "Requested matrix ($aiOwnedID) not found." );
+        return;
+        }
+    
+    $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
+    $ai_age = pn_mysqli_result( $result, 0, "ai_age" );
+    
+    
+
+    $query = "SELECT * FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows != 1 ) {
+        // underlying AI page doesn't exist?
+        pn_showErrorPage( $email, "Requested matrix ($aiPageName) not found." );
+        return;
+        }
+
+    $ai_response_label =
+        pn_mysqli_result( $result, 0, "ai_response_label" );
+    
+    // no filtering, because we append this to a buffer
+    // in a way that applies mysqlEscape later
+    // let user type ANYTHING
+    $clientCommand = $_REQUEST[ "client_command" ];
+    
+    global $humanTypedPrefix;
+    
+    $clientLine = "$humanTypedPrefix$clientCommand";
+    
+    // append to buffer with blank lines between and prompt for ai
+    $appendText = "\n\n$clientLine\n\n$ai_response_label";
+
+    $newBuffer = pn_addToConversationBuffer( $aiOwnedID, $appendText );
+
+
+    $ai_longevity = pn_mysqli_result( $result, 0, "ai_longevity" );
+    $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
+    $prompt_color = pn_mysqli_result( $result, 0, "prompt_color" );
+    $display_color = pn_mysqli_result( $result, 0, "display_color" );
+
+    $corr = pn_getCorruptionFraction( $ai_age, $ai_longevity );
+
+    $aiDone = false;
+
+    $aiResponse = "";
+
+    while( ! $aiDone ) {
+    
+        $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
+
+        if( $completion == "UNKNOWN_PROTOCOL" ) {
+            pn_showErrorPage( $email, "Protocol ($ai_protocol) not found." );
+            return;
+            }
+        
+        while( $completion == "FAILED" ) {
+            sleep( 5 );
+            $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
+            }
+        
+    
+        // AI often continues conversation through multiple responses
+        $gennedChatLines =
+            preg_split(
+                '/$ai_response_label:|<\|endoftext\|>|'.
+                'Human:|Humans:|The Human:|Machine:/',
+                $completion );
+
+
+        $gennedLine = "";
+
+        $computerHasBeenCutOff = false;
+        
+        if( count( $gennedChatLines ) > 1 ) {
+            $gennedLine = rtrim( $gennedChatLines[0] );
+
+            // make sure first line doesn't contain multiple lines
+            $gennedLine = pn_firstLineOnly( $gennedLine );
+
+            $aiDone = true;
+            }
+        else {
+            // only one line, without Computer or Human tags?
+
+            // take it raw
+            $gennedLine = rtrim( $completion );
+
+            // only consider first line, if there's more than one
+            $gennedLine = pn_firstLineOnly( $gennedLine );
+
+            
+            // watch out for it being cut-off...
+
+            // does it end in proper ending punctiuation?
+
+            $lastI = strlen( $gennedLine ) - 1;
+
+            $lastChar = $gennedLine[ $lastI ];
+
+            $aiDone = true;
+            
+            if( $lastChar != '.' &&
+                $lastChar != '!' &&
+                $lastChar != '?' &&
+                $lastChar != '"' ) {
+
+                // cut off!
+                $aiDone = false;
+                }
+            }
+
+        // keep appending so that if we need to get more from AI
+        // it can keep generating after what it has already generated
+        $newBuffer = $newBuffer . $gennedLine;
+        
+        $aiResponse = $aiResponse . $gennedLine;
+        }
+
+    // response is complete and ready!
+
+    
+    // clean up into a single line
+    // this is probably not necessary (other code above probably limits
+    // it to one line).
+    $aiResponse = join( " ", preg_split( "/\n/", $aiResponse ) );
+
+    // remove any non-ascii characters
+    $aiResponse = preg_replace( '/[^\x20-\x7E]/', '', $aiResponse);
+    
+    pn_addToConversationBuffer( $aiOwnedID, $aiResponse );
+
+    // next action
+    echo "talk_ai\n";
+    // carried param
+    echo "$aiOwnedID\n";
+    // Prefix what human types
+    echo "{" . $humanTypedPrefix . "}\n";
+    
+    // color for what user types being added to bottom with Human: prefix
+    echo "$prompt_color\n";
+    
+    // DO NOT clear, mid conversation
+    echo "0\n";
+
+    // use it for prompt too
+    echo "$prompt_color\n";
+
+    global $defaultPageCharMS;
+
+    $corrSkip = strlen( $ai_response_label );
+    
+    echo
+    "\n[$display_color] [$defaultPageCharMS] [$corr] [$corrSkip] ".
+        "$ai_response_label$aiResponse";
+    }
+
+
+
+function pn_isNotEmpty( $inString ) {
+    if( $inString == "" ) {
+        return false;
+        }
+    return true;
+    }
+
+function pn_firstLineOnly( $inString ) {
+    $gennedLineParts = array_filter( explode( "\n", $inString ),
+                                     "pn_isNotEmpty" );
+
+    return $gennedLineParts[0];
+    }
+
+
+
+function pn_getCorruptionFraction( $ai_age, $ai_longevity ) {
+
+    $ageLeft = $ai_longevity - $ai_age;
+    
+    if( $ageLeft < 10 ) {
+
+        return ( 10.0 - $ageLeft ) /  10.0;
+        }
+    else {
+        return 0;
+        }
+    
+    }
+
+
+
+// returns "FAILED" if could not reach server
+// returns "UNKNOWN_PROTOCOL" if could not reach server
+function pn_getAICompletion( $prompt, $ai_protocol ) {
+
+    if( $ai_protocol == "coreWeave" ) {
+        
+        $jsonArray =
+            array('instances' => array( $prompt ) );
+        /*
+          Example json:
+          {
+          "instances":  [ "\"Hey there,\" she said, \"" ]              
+          }
+        */
+
+        $postBody = json_encode( $jsonArray );
+    
+        global $coreWeaveURL;
+        
+        $url = $coreWeaveURL;
+    
+        $options = array(
+            'http' => array(
+                'header'  =>
+                "Connection: close\r\n".
+                "Content-type: application/json\r\n".
+                "Content-Length: " . strlen($postBody) . "\r\n",
+                'method'  => 'POST',
+                'protocol_version' => 1.1,
+                'content' => $postBody ) );
+        $context  = stream_context_create( $options );
+        $result = file_get_contents( $url, false, $context );
+
+        $promptLen = strlen( $prompt );
+
+        // debug printout
+        //echo "<pre>chat plain:\n$prompt\n($promptLen long)\nURL $url\npost body=\n$postBody\nresult = $result</pre>";
+
+        if( $result === FALSE ) {
+            return "FAILED";
+            }
+        else {
+        
+            $a = json_decode( $result, true );
+            $textGen = $a['predictions'][0];
+
+            // coreweave transformer includes prompt in response
+            $textGen = substr( $textGen, $promptLen );
+
+            return $textGen;
+            }
+        }
+    else {
+        return "UNKNOWN_PROTOCOL";
+        }
+    }
+
+
+
+
+// returns new buffer
+function pn_addToConversationBuffer( $aiOwnedID, $inText ) {
+
+    global $tableNamePrefix;
+
+    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+        "WHERE id = '$aiOwnedID';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
+    $conversation_buffer =
+        pn_mysqli_result( $result, 0, "conversation_buffer" );
+
+
+    $query = "SELECT * FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $display_text = pn_mysqli_result( $result, 0, "display_text" );
+
+    global $aiBufferLimit;
+
+    $newBuffer = $conversation_buffer . $inText;
+
+
+    if( strlen( $newBuffer ) > $aiBufferLimit ) {
+        // trim head off buffer, and stick display_text (initial prompt)
+        // on there, to maintain some consistency over the long term
+        $newBuffer = substr( $newBuffer,
+                             -( 1000 - ( strlen( $display_text ) + 10 ) ) );
+
+        // further trim so it starts with blank line, if possible
+        // this will prevent conversational discontinuity between
+        // the initial prompt and the trimmed conversation
+        $newlinePos = strpos( $newBuffer, "\n\n" );
+
+        if( $newlinePos !== FALSE ) {
+            $newBuffer = substr( $newBuffer, $newlinePos );
+            }
+        else {
+            // stick a blank line on there
+            $newBuffer = "\n\n" . $newBuffer;
+            }
+
+        $newBuffer = $display_text . $newBuffer;
+        }
+
+    $toReturn = $newBuffer;
+    
+    
+    $newBuffer = pn_mysqlEscape( $newBuffer );
+
+    
+    $query = "UPDATE $tableNamePrefix"."owned_ai ".
+        "SET conversation_buffer = '$newBuffer' ".
+        "WHERE id = '$aiOwnedID';";
+
+    $result = pn_queryDatabase( $query );
+
+
+    return $toReturn;
     }
 
 
