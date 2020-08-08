@@ -124,7 +124,8 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
-                        "main", "owned", "error", "matrix_dead" );
+                        "main", "owned", "error", "matrix_dead",
+                        "wipe_result" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
@@ -2249,6 +2250,13 @@ function pn_talkAI() {
         pn_standardResponseForPage( $email, "owned" );
         return;
         }
+    else if( $special == "wipe" ) {
+        pn_wipeConversationBuffer( $aiOwnedID );
+        
+        // exit back to wipe message page
+        pn_standardResponseForPage( $email, "wipe_result" );
+        return;
+        }
     
     
     global $humanTypedPrefix;
@@ -2621,6 +2629,39 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText ) {
 
 
     return $toReturn;
+    }
+
+
+
+function pn_wipeConversationBuffer( $aiOwnedID ) {
+    global $tableNamePrefix;
+
+    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+        "WHERE id = '$aiOwnedID';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
+
+
+    $query = "SELECT display_text FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $display_text = pn_mysqli_result( $result, 0, "display_text" );    
+    
+    $display_text = pn_mysqlEscape( $display_text );
+
+    
+    $query = "UPDATE $tableNamePrefix"."owned_ai ".
+        "SET conversation_buffer = '$display_text' ".
+        "WHERE id = '$aiOwnedID';";
+
+    $result = pn_queryDatabase( $query );
+
+
+    return $display_text;
     }
 
 
