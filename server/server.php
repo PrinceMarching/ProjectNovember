@@ -124,14 +124,15 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
-                        "main", "owned" );
+                        "main", "owned", "error" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
                                 "%CREDITS%" => "credits" );
 
-$replacableAIStrings = array( "%AI_OWNED_LIST%" => "",
-                              "%AI_OWNED_LIST_AFTER%" => "" );
+$replacableSpecialStrings = array( "%AI_OWNED_LIST%" => "",
+                                   "%AI_OWNED_LIST_AFTER%" => "",
+                                   "%ERROR_MESSAGE%" => "" );
 
 
 
@@ -1256,7 +1257,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
     <INPUT TYPE="Submit" VALUE="<?php echo $buttonName;?>">
     </FORM>
 <?php
-     global $replacableUserStrings, $replacableAIStrings;
+     global $replacableUserStrings, $replacableSpecialStrings;
     
     if( count( $replacableUserStrings ) > 0 ||
         count( $replacableAIStrings ) >  0 ) {
@@ -1264,7 +1265,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
         foreach( $replacableUserStrings as $s => $v ) {
             echo "$s ";
             }
-        foreach( $replacableAIStrings as $s => $v ) {
+        foreach( $replacableSpecialStrings as $s => $v ) {
             echo "$s ";
             }
         }
@@ -1750,9 +1751,8 @@ function pn_clientPage() {
             if( preg_match( "/talk_AI_/", $pickedName ) ) {
                 // special case
                 // initiate talk
-                
-                // FIXME
-                // initiate talking to AI here
+
+                pn_initiateTalkAI( $email, $pickedName );
                 }
             else if( preg_match( "/purchase_AI/", $pickedName ) ) {
                 // special case
@@ -2007,6 +2007,18 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
     }
 
 
+$lastErrorMessage = "";
+
+
+
+function pn_showErrorPage( $email, $inMessage ) {
+    global $lastErrorMessage;
+    $lastErrorMessage = $inMessage;
+    pn_log( "Showing error page for $email with '$lastErrorMessage'" );
+    pn_standardResponseForPage( $email, "error" );
+    }
+
+
 
 function pn_purchaseAI() {
     $email = pn_checkAndUpdateClientSeqNumber();
@@ -2024,8 +2036,7 @@ function pn_purchaseAI() {
 
     // they shouldn't be able to get here without enough credits
     // confirm page should bounce them
-    // but check to make sure (bounce them back to MAIN with no explain)
-    // since it's an unreachable state if they're not hacking
+    // but check to make sure
     global $tableNamePrefix;
     
     $query = "SELECT * FROM $tableNamePrefix"."pages ".
@@ -2039,7 +2050,7 @@ function pn_purchaseAI() {
         $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
         
         if( $ai_cost > pn_getUserCredits( $email ) ) {
-            pn_standardResponseForPage( $email, "main" );
+            pn_showErrorPage( $email, "Not enough compute credits." );
             return;
             }
         else {
@@ -2064,12 +2075,101 @@ function pn_purchaseAI() {
         // ai_page not found?
         // should never happen
         // bounce them to MAIN
-        pn_standardResponseForPage( $email, "main" );
+        pn_showErrorPage( $email, "Requested matrix not found." );
         return;
         }
     }
 
 
+
+function pn_initiateTalkAI( $email, $pickedName ) {
+    $prefix = "talk_AI_";
+
+    $aiOwnedID = substr( $pickedName, strlen( $prefix ) );
+
+    global $tableNamePrefix;
+    
+    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+        "WHERE id = '$aiOwnedID';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows != 1 ) {
+        // owned ai doesn't exist
+        pn_showErrorPage( $email, "Requested matrix ($aiOwnedID) not found." );
+        return;
+        }
+    
+    $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
+
+    $conversation_buffer =
+        pn_mysqli_result( $result, 0, "conversation_buffer" );
+
+
+    $query = "SELECT * FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows != 1 ) {
+        // underlying AI page doesn't exist?
+        pn_showErrorPage( $email, "Requested matrix ($aiPageName) not found." );
+        return;
+        }
+    
+    $display_text =
+        pn_mysqli_result( $result, 0, "display_text" );
+
+
+    if( $conversation_buffer == "" ) {
+        // empty so far
+        // seed it with AI page text
+        pn_addToConversationBuffer( $aiOwnedID, $display_text );
+        }
+    
+    
+    
+    
+    // next action
+    echo "talk_ai\n";
+    // carried param
+    echo "$aiPageName\n";
+    // Prefix what human types
+    echo "{Human: }\n";
+
+
+    $prompt_color =
+        pn_mysqli_result( $result, 0, "prompt_color" );
+    
+    // color for what user types being added to bottom with Human: prefix
+    echo "$prompt_color\n";
+    
+    // DO clear
+    echo "1\n";
+
+    // use it for prompt too
+    echo "$prompt_color\n";
+    
+    // no text lines... just a blank screen, waiting for them to type
+    }
+
+
+
+function pn_addToConversationBuffer( $aiOwnedID, $inText ) {
+    $inText = addslashes( $inText );
+
+    global $tableNamePrefix;
+    
+    $query = "UPDATE $tableNamePrefix"."owned_ai ".
+        "SET conversation_buffer = concat( conversation_buffer, '$inText' ) ".
+        "WHERE id = '$aiOwnedID';";
+
+    $result = pn_queryDatabase( $query );
+    }
 
 
 
@@ -2340,7 +2440,7 @@ function pn_replaceVarsInLine( $email, $inLine ) {
         $after = $numRows + 1;
 
         for( $i=0; $i<$numRows; $i++ ) {
-            $age = pn_mysqli_result( $result, $i, "age" );
+            $age = pn_mysqli_result( $result, $i, "ai_age" );
             $ai_name = pn_mysqli_result( $result, $i, "ai_name" );
             $ai_longevity = pn_mysqli_result( $result, $i, "ai_longevity" );
 
@@ -2355,6 +2455,10 @@ function pn_replaceVarsInLine( $email, $inLine ) {
     
     $inLine = preg_replace( "/%AI_OWNED_LIST%/", $listText, $inLine );    
     $inLine = preg_replace( "/%AI_OWNED_LIST_AFTER%/", $after, $inLine );    
+
+    global $lastErrorMessage;
+    $inLine = preg_replace( "/%ERROR_MESSAGE%/",
+                            $lastErrorMessage, $inLine );    
         
     return $inLine;
     }
