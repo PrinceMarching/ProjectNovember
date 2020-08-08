@@ -2430,7 +2430,8 @@ function pn_getCorruptionFraction( $ai_age, $ai_longevity ) {
     
     if( $ageLeft < 10 ) {
 
-        return ( 10.0 - $ageLeft ) /  10.0;
+        // 1/5 of characters corrupted by end of life
+        return ( 10.0 - $ageLeft ) /  50.0;
         }
     else {
         return 0;
