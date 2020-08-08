@@ -103,5 +103,13 @@ $defaultPageTextColor = "#FFFFFF";
 $defaultPagePromptColor = "#FFFF00";
 
 
+$humanTypedPrefix = "Human: ";
+
+$aiBufferLimit = 1000;
+
+
+// coreweave transformer URL
+$coreWeaveURL = "http://put_your_url_here";
+
 
 ?>
