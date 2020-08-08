@@ -605,6 +605,9 @@ function doKeyPress( e ) {
 			addLineToBuffer( liveTypedCommand, lineColor, 
 							 charPrintingStepMS, c, cSkip );
 			
+			// silent for now, when text added.
+			// this isn't working reliably anyway.
+			if( false )
 			playSoundObjectSequence( beepSoundObj, liveTypedCommand.length,
 									 charPrintingStepMS );
 		}
