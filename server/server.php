@@ -2217,6 +2217,16 @@ function pn_talkAI() {
     // in a way that applies mysqlEscape later
     // let user type ANYTHING
     $clientCommand = $_REQUEST[ "client_command" ];
+
+
+    // watch for special commands
+    $special = strtolower( trim( $clientCommand ) );
+    if( $special == "exit" ) {
+        // exit back to owned page
+        pn_standardResponseForPage( $email, "owned" );
+        return;
+        }
+    
     
     global $humanTypedPrefix;
     
@@ -2239,6 +2249,8 @@ function pn_talkAI() {
 
     $aiResponse = "";
 
+    $responseCost = 0;
+    
     while( ! $aiDone ) {
     
         $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
@@ -2252,7 +2264,8 @@ function pn_talkAI() {
             sleep( 5 );
             $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
             }
-        
+
+        $responseCost ++;
     
         // AI often continues conversation through multiple responses
         $gennedChatLines =
@@ -2313,6 +2326,13 @@ function pn_talkAI() {
 
     // response is complete and ready!
 
+
+    $query = "UPDATE $tableNamePrefix"."owned_ai ".
+        "SET ai_age = ai_age + $responseCost ".
+        "WHERE id = '$aiOwnedID';";
+
+    $result = pn_queryDatabase( $query );
+    
     
     // clean up into a single line
     // this is probably not necessary (other code above probably limits
