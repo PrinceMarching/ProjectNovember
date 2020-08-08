@@ -246,6 +246,7 @@ else if( preg_match( "/server\.php/", $_SERVER[ "SCRIPT_NAME" ] ) ) {
     
     // check if our tables exist
     $exists =
+        pn_doesTableExist( $tableNamePrefix . "server_globals" ) &&
         pn_doesTableExist( $tableNamePrefix . "random_nouns" ) &&
         pn_doesTableExist( $tableNamePrefix . "last_names" ) &&
         pn_doesTableExist( $tableNamePrefix . "users" ) &&
@@ -315,6 +316,28 @@ function pn_setupDatabase() {
         echo "<B>$tableName</B> table already exists<BR>";
         }
 
+
+    $tableName = $tableNamePrefix . "server_globals";
+    if( ! pn_doesTableExist( $tableName ) ) {
+
+        // this table contains general info about the server
+        // use INNODB engine so table can be locked
+        $query =
+            "CREATE TABLE $tableName(" .
+            "last_keep_alive_time DATETIME NOT NULL );";
+
+        $result = pn_queryDatabase( $query );
+
+        echo "<B>$tableName</B> table created<BR>";
+        }
+    else {
+        echo "<B>$tableName</B> table already exists<BR>";
+        }
+
+    $query = "INSERT INTO $tableName ".
+        "SET last_keep_alive_time = CURRENT_TIMESTAMP;";
+    pn_queryDatabase( $query );
+    
 
     // these words taken from a cognitive experiment database
     // http://www.datavis.ca/online/paivio/
@@ -2353,6 +2376,8 @@ function pn_talkAI() {
 
     // remove any non-ascii characters
     $aiResponse = preg_replace( '/[^\x20-\x7E]/', '', $aiResponse);
+
+    $aiResponse = trim( $aiResponse );
     
     pn_addToConversationBuffer( $aiOwnedID, $aiResponse );
 
@@ -2415,11 +2440,64 @@ function pn_getCorruptionFraction( $ai_age, $ai_longevity ) {
 
 
 
+
+function pn_aiServerKeepAlive() {
+
+    global $aiKeepAliveIntervalSeconds;
+
+    global $tableNamePrefix;
+
+    $query = "SELECT TIME_TO_SEC( ".
+        "            TIMEDIFF( CURRENT_TIMESTAMP, ".
+        "                      last_keep_alive_time ) ) as sec_since ".
+        "FROM $tableNamePrefix"."server_globals;";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows != 1 ) {
+        return;
+        }
+    
+    $sec_since = pn_mysqli_result( $result, 0, "sec_since" );
+
+    if( $sec_since > $aiKeepAliveIntervalSeconds ) {
+        // specify a brief time-out here, just to cause it to spin up
+        // without waiting for result.
+        $startTime = microtime( true );
+        
+        pn_getAICompletion( "This is a test", "coreWeave", 0.1 );
+
+        $deltaTime = microtime( true ) - $startTime;
+        pn_log( "AI server keep-alive took $deltaTime seconds" );
+
+        $query = "UPDATE $tableNamePrefix"."server_globals ".
+            "SET last_keep_alive_time = CURRENT_TIMESTAMP;";
+        
+        pn_queryDatabase( $query );
+        }
+    }
+
+
+function pn_registerAIUsed( $ai_protocol ) {
+    global $tableNamePrefix;
+        
+    $query = "UPDATE $tableNamePrefix"."server_globals ".
+        "SET last_keep_alive_time = CURRENT_TIMESTAMP;";
+    
+    pn_queryDatabase( $query );
+    }
+
+
+
+
 // returns "FAILED" if could not reach server
 // returns "UNKNOWN_PROTOCOL" if could not reach server
-function pn_getAICompletion( $prompt, $ai_protocol ) {
+function pn_getAICompletion( $prompt, $ai_protocol, $timeout = 0 ) {
 
     if( $ai_protocol == "coreWeave" ) {
+        pn_registerAIUsed( $ai_protocol );
         
         $jsonArray =
             array('instances' => array( $prompt ) );
@@ -2435,16 +2513,20 @@ function pn_getAICompletion( $prompt, $ai_protocol ) {
         global $coreWeaveURL;
         
         $url = $coreWeaveURL;
-    
-        $options = array(
-            'http' => array(
-                'header'  =>
-                "Connection: close\r\n".
-                "Content-type: application/json\r\n".
-                "Content-Length: " . strlen($postBody) . "\r\n",
-                'method'  => 'POST',
-                'protocol_version' => 1.1,
-                'content' => $postBody ) );
+
+        $httpArray = array(
+            'header'  =>
+            "Connection: close\r\n".
+            "Content-type: application/json\r\n".
+            "Content-Length: " . strlen($postBody) . "\r\n",
+            'method'  => 'POST',
+            'protocol_version' => 1.1,
+            'content' => $postBody );
+        if( $timeout != 0 ) {
+            $httpArray[ "timeout" ] = $timeout;
+            }
+        
+        $options = array( 'http' => $httpArray );
         $context  = stream_context_create( $options );
         $result = file_get_contents( $url, false, $context );
 
@@ -2609,7 +2691,9 @@ function pn_checkAndUpdateClientSeqNumber() {
     $email = pn_getEmailParam();
 
     $trueSeq = pn_checkClientSeqHash( $email );
-    
+
+    // true client calls keep AI server alive
+    pn_aiServerKeepAlive();
     
     // no locking is done here, because action is asynchronous anyway
 

@@ -107,6 +107,11 @@ $humanTypedPrefix = "Human: ";
 
 $aiBufferLimit = 1000;
 
+// send keep-alive request every 15 minutes
+// (ai server spins down after 30 minutes idle)
+$aiKeepAliveIntervalSeconds = 15 * 60;
+
+
 
 // coreweave transformer URL
 $coreWeaveURL = "http://put_your_url_here";
