@@ -666,7 +666,7 @@ function pn_addUser() {
     $query = "INSERT INTO $tableNamePrefix"."users ".
         "SET email = '$email', pass_words = '$pass_words', ".
         "fake_last_name = '$fake_last_name', credits = '$credits', ".
-        "current_page = '';";
+        "current_page = '', client_sequence_number=0;";
 
     pn_log( "Trying to create user with query:  $query" );
     
