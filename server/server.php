@@ -2308,6 +2308,9 @@ function pn_talkAI() {
             $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
             }
 
+        pn_log( "Prompting AI with '$newBuffer', ".
+                "received completion '$completion'" );
+        
         $responseCost ++;
     
         // AI often continues conversation through multiple responses
