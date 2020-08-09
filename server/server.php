@@ -2295,74 +2295,92 @@ function pn_talkAI() {
     $responseCost = 0;
     
     while( ! $aiDone ) {
-    
-        $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
-
-        if( $completion == "UNKNOWN_PROTOCOL" ) {
-            pn_showErrorPage( $email, "Protocol ($ai_protocol) not found." );
-            return;
-            }
-        
-        while( $completion == "FAILED" ) {
-            sleep( 5 );
-            $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
-            }
-
-        pn_log( "Prompting AI with '$newBuffer', ".
-                "received completion '$completion'" );
-        
-        $responseCost ++;
-    
-        // AI often continues conversation through multiple responses
-        $gennedChatLines =
-            preg_split(
-                '/$ai_response_label:|<\|endoftext\|>|'.
-                'Human:|Humans:|The Human:|Machine:/',
-                $completion );
-
 
         $gennedLine = "";
 
-        $computerHasBeenCutOff = false;
+        while( strlen( count_chars( $gennedLine, 3 ) )  < 4 ) {
+            
+            // AI has generated repeating characters or nonsense
+            // with no words.... like   ???   or _____  
+            // or just an empty response.
+            // try again!
+            $gennedLine = "";
+            
         
-        if( count( $gennedChatLines ) > 1 ) {
-            $gennedLine = rtrim( $gennedChatLines[0] );
+            $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
 
-            // make sure first line doesn't contain multiple lines
-            $gennedLine = pn_firstLineOnly( $gennedLine );
-
-            $aiDone = true;
-            }
-        else {
-            // only one line, without Computer or Human tags?
-
-            // take it raw
-            $gennedLine = rtrim( $completion );
-
-            // only consider first line, if there's more than one
-            $gennedLine = pn_firstLineOnly( $gennedLine );
-
+            if( $completion == "UNKNOWN_PROTOCOL" ) {
+                pn_showErrorPage( $email,
+                                  "Protocol ($ai_protocol) not found." );
+                return;
+                }
             
-            // watch out for it being cut-off...
+            while( $completion == "FAILED" ) {
+                sleep( 5 );
+                $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
+                }
 
-            // does it end in proper ending punctiuation?
+            // enable this for debugging
+            if( false )
+            pn_log( "Prompting AI with '$newBuffer', ".
+                    "received completion '$completion'" );
+        
+            $responseCost ++;
+    
+            // AI often continues conversation through multiple responses
+            $gennedChatLines =
+                preg_split(
+                    '/$ai_response_label:|<\|endoftext\|>|'.
+                    'Human:|Humans:|The Human:|Machine:/',
+                    $completion );
 
-            $lastI = strlen( $gennedLine ) - 1;
 
-            $lastChar = $gennedLine[ $lastI ];
-
-            $aiDone = true;
+            $gennedLine = "";
             
-            if( $lastChar != '.' &&
-                $lastChar != '!' &&
-                $lastChar != '?' &&
-                $lastChar != '"' ) {
+            $computerHasBeenCutOff = false;
+            
+            if( count( $gennedChatLines ) > 1 ) {
+                $gennedLine = rtrim( $gennedChatLines[0] );
 
-                // cut off!
-                $aiDone = false;
+                // make sure first line doesn't contain multiple lines
+                $gennedLine = pn_firstLineOnly( $gennedLine );
+
+                $aiDone = true;
+                }
+            else {
+                // only one line, without Computer or Human tags?
+                
+                // take it raw
+                $gennedLine = rtrim( $completion );
+                
+                // only consider first line, if there's more than one
+                $gennedLine = pn_firstLineOnly( $gennedLine );
+                
+                
+                // watch out for it being cut-off...
+                
+                // does it end in proper ending punctiuation?
+
+                $lastI = strlen( $gennedLine ) - 1;
+                
+                $lastChar = $gennedLine[ $lastI ];
+                
+                $aiDone = true;
+                
+                if( $lastChar != '.' &&
+                    $lastChar != '!' &&
+                    $lastChar != '?' &&
+                    $lastChar != '"' ) {
+                    
+                    // cut off!
+                    $aiDone = false;
+                    }
                 }
             }
 
+        // if we got here, the AI generated at least a partial
+        // response that is not just empty or repeating characters.
+        
         // keep appending so that if we need to get more from AI
         // it can keep generating after what it has already generated
         $newBuffer = $newBuffer . $gennedLine;
