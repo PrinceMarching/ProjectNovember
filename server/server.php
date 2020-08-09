@@ -668,8 +668,7 @@ function pn_addUser() {
         "fake_last_name = '$fake_last_name', credits = '$credits', ".
         "current_page = '', client_sequence_number=0;";
 
-    pn_log( "Trying to create user with query:  $query" );
-    
+
     global $pn_mysqlLink;
     // run query directly, so we can catch error
     $result = mysqli_query( $pn_mysqlLink, $query );
