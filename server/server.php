@@ -2645,6 +2645,11 @@ function pn_getAICompletion( $prompt, $ai_protocol,
 // returns new buffer
 function pn_addToConversationBuffer( $aiOwnedID, $inText ) {
 
+    // enforce newline consistency
+    // \r\n  becomes \n
+    // html textarea, which we use to edit forms, inserts \r\n in display_text
+    $inText = preg_replace( "/\r\n/", "\n", $inText );
+    
     global $tableNamePrefix;
 
     $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
@@ -2670,6 +2675,11 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText ) {
 
 
     if( strlen( $newBuffer ) > $aiBufferLimit ) {
+        // enforce newline consistency
+        // \r\n  becomes \n
+        // html textarea, which we use to edit forms, inserts \r\n in display_text
+        $display_text = preg_replace( "/\r\n/", "\n", $display_text );
+        
         // trim head off buffer, and stick display_text (initial prompt)
         // on there, to maintain some consistency over the long term
         $newBuffer = substr( $newBuffer,
@@ -2726,6 +2736,11 @@ function pn_wipeConversationBuffer( $aiOwnedID ) {
     $result = pn_queryDatabase( $query );
     
     $display_text = pn_mysqli_result( $result, 0, "display_text" );    
+
+    // enforce newline consistency
+    // \r\n  becomes \n
+    // html textarea, which we use to edit forms, inserts \r\n in display_text
+    $display_text = preg_replace( "/\r\n/", "\n", $display_text );
     
     $display_text = pn_mysqlEscape( $display_text );
 
