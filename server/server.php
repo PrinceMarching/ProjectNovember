@@ -2166,6 +2166,11 @@ function pn_initiateTalkAI( $email, $pickedName ) {
         pn_addToConversationBuffer( $aiOwnedID, $display_text );
         }
 
+    $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
+
+    $display_color = pn_mysqli_result( $result, 0, "display_color" );
+
+    
     global $humanTypedPrefix;
     
     
@@ -2191,7 +2196,27 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     echo "$prompt_color\n";
     
     // no text lines... just a blank screen, waiting for them to type
+
+    // actually, include some lines here explaining what is going on
+    echo
+    "\n[$display_color] [$defaultPageCharMS] [0] [0] ".
+        "Matrix $ai_name initialized.";
+    echo
+    "\n[$display_color] [$defaultPageCharMS] [0] [0] ".
+        "Human types first:";
     }
+
+
+
+
+function pn_isLineJunk( $inLine ) {
+    if( strlen( count_chars( $inLine, 3 ) )  < 4 ) {
+        return true;
+        }
+    return false;
+    }
+
+
 
 
 function pn_talkAI() {
@@ -2262,6 +2287,12 @@ function pn_talkAI() {
     global $humanTypedPrefix;
     
     $clientLine = "$humanTypedPrefix$clientCommand";
+
+    // A space at the end of the prompt sent to the AI tends to produce
+    // garbage completions.  Not sure why,
+    // but we'll add the space back later, before presenting the results
+    // to the user.
+    $ai_response_label = trim( $ai_response_label );
     
     // append to buffer with blank lines between and prompt for ai
     $appendText = "\n\n$clientLine\n\n$ai_response_label";
@@ -2297,8 +2328,9 @@ function pn_talkAI() {
     while( ! $aiDone ) {
 
         $gennedLine = "";
-
-        while( strlen( count_chars( $gennedLine, 3 ) )  < 4 ) {
+        $tryCount = 0;
+        
+        while( pn_isLineJunk( $gennedLine ) ) {
             
             // AI has generated repeating characters or nonsense
             // with no words.... like   ???   or _____  
@@ -2306,8 +2338,16 @@ function pn_talkAI() {
             // try again!
             $gennedLine = "";
             
-        
-            $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
+            $logJSON = false;
+            if( $tryCount > 0 ) {
+                // start logging json sent to AI server when
+                // we are retrying, so that we can capture/reproduce what's
+                // going on
+                $logJSON = true;
+                }
+            
+            $completion = pn_getAICompletion( $newBuffer, $ai_protocol,
+                                              $logJSON );
 
             if( $completion == "UNKNOWN_PROTOCOL" ) {
                 pn_showErrorPage( $email,
@@ -2317,13 +2357,10 @@ function pn_talkAI() {
             
             while( $completion == "FAILED" ) {
                 sleep( 5 );
+                // don't $logJSON after we get FAILED back
                 $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
                 }
 
-            // enable this for debugging
-            if( false )
-            pn_log( "Prompting AI with '$newBuffer', ".
-                    "received completion '$completion'" );
         
             $responseCost ++;
     
@@ -2376,6 +2413,17 @@ function pn_talkAI() {
                     $aiDone = false;
                     }
                 }
+            
+            
+            if( pn_isLineJunk( $gennedLine ) ) {
+                // log the retry
+                pn_log( "Try $tryCount needs retry: ".
+                        "Prompting AI with '$newBuffer', ".
+                        "received completion '$completion'" );
+                }
+                
+            
+            $tryCount ++;
             }
 
         // if we got here, the AI generated at least a partial
@@ -2406,7 +2454,9 @@ function pn_talkAI() {
     // remove any non-ascii characters
     $aiResponse = preg_replace( '/[^\x20-\x7E]/', '', $aiResponse);
 
-    $aiResponse = trim( $aiResponse );
+    // add a single space to front of response, to separate it from
+    // the Computer: prompt (or whatever the prompt the AI uses).
+    $aiResponse = " " . trim( $aiResponse );
     
     pn_addToConversationBuffer( $aiOwnedID, $aiResponse );
 
@@ -2497,7 +2547,7 @@ function pn_aiServerKeepAlive() {
         // without waiting for result.
         $startTime = microtime( true );
         
-        pn_getAICompletion( "This is a test", "coreWeave", 0.1 );
+        pn_getAICompletion( "This is a test", "coreWeave", false, 0.1 );
 
         $deltaTime = microtime( true ) - $startTime;
         pn_log( "AI server keep-alive took $deltaTime seconds" );
@@ -2524,7 +2574,8 @@ function pn_registerAIUsed( $ai_protocol ) {
 
 // returns "FAILED" if could not reach server
 // returns "UNKNOWN_PROTOCOL" if could not reach server
-function pn_getAICompletion( $prompt, $ai_protocol, $timeout = 0 ) {
+function pn_getAICompletion( $prompt, $ai_protocol,
+                             $logJSON=false, $timeout = 0 ) {
 
     if( $ai_protocol == "coreWeave" ) {
         pn_registerAIUsed( $ai_protocol );
@@ -2539,7 +2590,11 @@ function pn_getAICompletion( $prompt, $ai_protocol, $timeout = 0 ) {
         */
 
         $postBody = json_encode( $jsonArray );
-    
+
+        if( $logJSON ) {
+            pn_log( "json encoding sent to AI:  $postBody" );
+            }
+        
         global $coreWeaveURL;
         
         $url = $coreWeaveURL;
