@@ -2483,6 +2483,16 @@ function pn_talkAI() {
     echo
     "\n[$display_color] [$defaultPageCharMS] [$corr] [$corrSkip] ".
         "$ai_response_label$aiResponse";
+
+
+    $corrAfter = pn_getCorruptionFraction( $ai_age + $responseCost, $ai_longevity );
+
+    if( $corr == 0 &&
+        $corrAfter > 0 ) {
+        // add a warning line, because corruption has just started.
+        echo "\n[#FF0000] [$defaultPageCharMS] [0] [0] ".
+            "CORRUPTION DETECTED - MATRIX DYING";
+        }
     }
 
 
