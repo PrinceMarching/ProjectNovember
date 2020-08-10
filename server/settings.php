@@ -105,7 +105,7 @@ $defaultPagePromptColor = "#FFFF00";
 
 $humanTypedPrefix = "Human: ";
 
-$aiBufferLimit = 1000;
+$aiBufferLimit = 2000;
 
 // send keep-alive request every 15 minutes
 // (ai server spins down after 30 minutes idle)
