@@ -253,6 +253,7 @@ else if( preg_match( "/server\.php/", $_SERVER[ "SCRIPT_NAME" ] ) ) {
         pn_doesTableExist( $tableNamePrefix . "users" ) &&
         pn_doesTableExist( $tableNamePrefix . "pages" ) &&
         pn_doesTableExist( $tableNamePrefix . "owned_ai" ) &&
+        pn_doesTableExist( $tableNamePrefix . "conversation_logs" ) &&
         pn_doesTableExist( $tableNamePrefix . "log" );
     
         
@@ -301,8 +302,6 @@ function pn_setupDatabase() {
     $tableName = $tableNamePrefix . "log";
     if( ! pn_doesTableExist( $tableName ) ) {
 
-        // this table contains general info about the server
-        // use INNODB engine so table can be locked
         $query =
             "CREATE TABLE $tableName(" .
             "entry TEXT NOT NULL, ".
@@ -322,7 +321,6 @@ function pn_setupDatabase() {
     if( ! pn_doesTableExist( $tableName ) ) {
 
         // this table contains general info about the server
-        // use INNODB engine so table can be locked
         $query =
             "CREATE TABLE $tableName(" .
             "last_keep_alive_time DATETIME NOT NULL );";
@@ -526,7 +524,8 @@ function pn_setupDatabase() {
             "page_name VARCHAR(254) NOT NULL,".
             "index( page_name ),".
             "ai_age INT UNSIGNED NOT NULL,".
-            "conversation_buffer TEXT NOT NULL );";
+            "conversation_buffer TEXT NOT NULL,".
+            "conversation_log TEXT NOT NULL );";
         
         $result = pn_queryDatabase( $query );
 
@@ -536,6 +535,28 @@ function pn_setupDatabase() {
         echo "<B>$tableName</B> table already exists<BR>";
         }
 
+
+    $tableName = $tableNamePrefix . "conversation_logs";
+    if( ! pn_doesTableExist( $tableName ) ) {
+
+        $query =
+            "CREATE TABLE $tableName(" .
+            "email VARCHAR(254) NOT NULL, ".
+            "log_time DATETIME NOT NULL, ".
+            "page_name VARCHAR(254) NOT NULL,".
+            "conversation TEXT NOT NULL, ".
+            "index( log_time ), index( email ) );";
+
+        $result = pn_queryDatabase( $query );
+
+        echo "<B>$tableName</B> table created<BR>";
+        }
+    else {
+        echo "<B>$tableName</B> table already exists<BR>";
+        }
+
+
+    
     }
 
 
@@ -1839,6 +1860,24 @@ function pn_getUserID( $email ) {
 
 
 
+function pn_getEmail( $user_id ) {
+    global $tableNamePrefix;
+    
+    
+    $query = "SELECT email ".
+            "FROM $tableNamePrefix"."users WHERE id='$user_id';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+        return pn_mysqli_result( $result, 0, "email" );
+        }
+    return "";
+    }
+
+
+
 function pn_getUserCredits( $email ) {
     global $tableNamePrefix;
     
@@ -2096,8 +2135,8 @@ function pn_purchaseAI() {
                 "SET user_id = '$user_id',".
                 "page_name = '$aiPageName',".
                 "ai_age = '0',".
-                // pad initial buffer with display text
-                "conversation_buffer = '';";
+                "conversation_buffer = '',".
+                "conversation_log = '';";
             
             pn_queryDatabase( $query );
 
@@ -2163,7 +2202,8 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     if( $conversation_buffer == "" ) {
         // empty so far
         // seed it with AI page text
-        pn_addToConversationBuffer( $aiOwnedID, $display_text );
+        // but don't log it
+        pn_addToConversationBuffer( $aiOwnedID, $display_text, false );
         }
 
     $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
@@ -2312,6 +2352,10 @@ function pn_talkAI() {
     if( $ai_age >= $ai_longevity ) {
 
         // delete the dead matrix
+
+        // archive conversation first
+        pn_archiveConversation( $aiOwnedID, "(MATRIX DEAD)" );
+        
         $query = "DELETE FROM $tableNamePrefix"."owned_ai ".
             "WHERE id = '$aiOwnedID' ";
         pn_queryDatabase( $query );
@@ -2653,15 +2697,26 @@ function pn_getAICompletion( $prompt, $ai_protocol,
 
 
 // returns new buffer
-function pn_addToConversationBuffer( $aiOwnedID, $inText ) {
+function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
+    global $tableNamePrefix;
 
     // enforce newline consistency
     // \r\n  becomes \n
     // html textarea, which we use to edit forms, inserts \r\n in display_text
     $inText = preg_replace( "/\r\n/", "\n", $inText );
-    
-    global $tableNamePrefix;
 
+    
+    if( $inLog ) {
+        $textAdded = pn_mysqlEscape( $inText );
+        
+        $query = "UPDATE $tableNamePrefix"."owned_ai ".
+            "SET conversation_log = concat( conversation_log, '$textAdded' ) ".
+            "WHERE id = '$aiOwnedID';";
+        
+        $result = pn_queryDatabase( $query );
+        }
+    
+    
     $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
         "WHERE id = '$aiOwnedID';";
     
@@ -2729,16 +2784,49 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText ) {
 
 
 
+function pn_archiveConversation( $aiOwnedID, $inFinalStamp = "" ) {
+    global $tableNamePrefix;
+    
+    $query = "SELECT page_name, user_id, conversation_log FROM $tableNamePrefix"."owned_ai ".
+        "WHERE id = '$aiOwnedID';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
+    
+    $user_id = pn_mysqli_result( $result, 0, "user_id" );
+    
+    $conversation_log = pn_mysqli_result( $result, 0, "conversation_log" );
+
+    // stick final stamp, if any, on end
+    $conversation_log = $conversation_log . "\n\n". $inFinalStamp;
+
+    
+    $conversation_log = pn_mysqlEscape( $conversation_log );
+    
+
+    $email = pn_getEmail( $user_id );
+    
+    $query = "INSERT INTO $tableNamePrefix"."conversation_logs ".
+        "SET email = '$email', log_time = CURRENT_TIMESTAMP, page_name ='$aiPageName',".
+        "conversation = '$conversation_log';";
+    $result = pn_queryDatabase( $query );
+    }
+
+
+
 function pn_wipeConversationBuffer( $aiOwnedID ) {
     global $tableNamePrefix;
 
-    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+    $query = "SELECT page_name FROM $tableNamePrefix"."owned_ai ".
         "WHERE id = '$aiOwnedID';";
     
     $result = pn_queryDatabase( $query );
     
     $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
 
+    pn_archiveConversation( $aiOwnedID, "(BUFFER WIPED)" );
+    
 
     $query = "SELECT display_text FROM $tableNamePrefix"."pages ".
         "WHERE name = '$aiPageName';";
@@ -2754,9 +2842,9 @@ function pn_wipeConversationBuffer( $aiOwnedID ) {
     
     $display_text = pn_mysqlEscape( $display_text );
 
-    
+    // clear log here, since we saved it
     $query = "UPDATE $tableNamePrefix"."owned_ai ".
-        "SET conversation_buffer = '$display_text' ".
+        "SET conversation_buffer = '$display_text', conversation_log = '' ".
         "WHERE id = '$aiOwnedID';";
 
     $result = pn_queryDatabase( $query );
