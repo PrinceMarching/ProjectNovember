@@ -211,6 +211,9 @@ else if( $action == "import_pages" ) {
 else if( $action == "show_import" ) {
     pn_showImport();
     }
+else if( $action == "show_conversation" ) {
+    pn_showConversation();
+    }
 else if( $action == "delete_user" ) {
     pn_deleteUser();
     }
@@ -541,6 +544,7 @@ function pn_setupDatabase() {
 
         $query =
             "CREATE TABLE $tableName(" .
+            "id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT," .
             "email VARCHAR(254) NOT NULL, ".
             "log_time DATETIME NOT NULL, ".
             "page_name VARCHAR(254) NOT NULL,".
@@ -1183,10 +1187,82 @@ function pn_showDetail( $checkPassword = true ) {
     <INPUT TYPE="checkbox" NAME="confirm" VALUE=1> Confirm<br>      
     <INPUT TYPE="Submit" VALUE="Delete User">
     </FORM>
+        <hr>
 <?php
 
+             
+    $query = "SELECT page_name, ai_age, length( conversation_buffer ) as len ".
+             "FROM $tableNamePrefix"."owned_ai ".
+             "WHERE user_id = '$id';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        echo "Owned AIs:<br><br>";
+    
+        for( $i=0; $i<$numRows; $i++ ) {
+            $page_name = pn_mysqli_result( $result, $i, "page_name" );
+            $age = pn_mysqli_result( $result, $i, "ai_age" );
+            $len = pn_mysqli_result( $result, $i, "len" );
+            
+            echo "<a href='server.php?action=edit_page&name=$page_name'>$page_name</a> ".
+                "($age) [buffer=$len]<br>";
+            }
+        echo "<hr>";
+        }
+
+    $query = "SELECT id, page_name, log_time ".
+             "FROM $tableNamePrefix"."conversation_logs ".
+             "WHERE email = '$email';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        echo "Archived conversations:<br><br>";
+    
+        for( $i=0; $i<$numRows; $i++ ) {
+            $id = pn_mysqli_result( $result, $i, "id" );
+            $page_name = pn_mysqli_result( $result, $i, "page_name" );
+            $time = pn_mysqli_result( $result, $i, "log_time" );
+            
+            echo "$time <a href='server.php?action=show_conversation&id=$id'>$page_name</a><br>";
+            }
+        echo "<hr>";
+        }
     }
 
+
+
+function pn_showConversation() {
+    pn_checkPassword( "show_conversation" );
+    pn_showLinkHeader();
+
+    $id = pn_requestFilter( "id", "/[0-9]+/i", -1 );
+
+    
+    global $tableNamePrefix;
+    $query = "SELECT conversation ".
+             "FROM $tableNamePrefix"."conversation_logs ".
+             "WHERE id = '$id';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        $c = pn_mysqli_result( $result, $i, "conversation" );
+
+        echo "<pre style='white-space: pre-wrap;'>$c</pre><br>";
+        }
+    else {
+        echo "Conversation not found for id = $id<br>";
+        }
+    
+    }
 
 
 function pn_addCredits() {
