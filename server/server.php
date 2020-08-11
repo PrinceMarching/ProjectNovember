@@ -125,7 +125,7 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
                         "main", "owned", "error", "matrix_dead",
-                        "wipe_result" );
+                        "wipe_result", "builtIn" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
@@ -475,7 +475,11 @@ function pn_setupDatabase() {
             "credits int NOT NULL," .
             "current_page VARCHAR(254) NOT NULL," .
             // for use with client connections
-            "client_sequence_number INT NOT NULL );";
+            "client_sequence_number INT NOT NULL,".
+            // track how many times they've typed exit from chat
+            // stop showing the boilerplate help at beginning of chat
+            // after they learn it
+            "num_times_exit_used INT NOT NULL );";
 
         $result = pn_queryDatabase( $query );
 
@@ -695,7 +699,8 @@ function pn_addUser() {
     $query = "INSERT INTO $tableNamePrefix"."users ".
         "SET email = '$email', pass_words = '$pass_words', ".
         "fake_last_name = '$fake_last_name', credits = '$credits', ".
-        "current_page = '', client_sequence_number=0;";
+        "current_page = '', client_sequence_number = 0, ".
+        "num_times_exit_used = 0;";
 
 
     global $pn_mysqlLink;
@@ -2357,11 +2362,45 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     echo
     "\n[$display_color] [$defaultPageCharMS] [0] [0] ".
         "Matrix $ai_name initialized.";
+
+    if( pn_getUserExitCount( $email ) < 2 ) {
+        // show help to novice users
+        echo
+            "\n[$display_color] [$defaultPageCharMS] [0] [0] ".
+            "Type   exit   to leave, or";
+        echo
+            "\n[$display_color] [$defaultPageCharMS] [0] [0] ".
+            "       help   for more commands.";
+        }
+    
     echo
     "\n[$display_color] [$defaultPageCharMS] [0] [0] ".
         "Human types first:";
     }
 
+
+
+function pn_getUserExitCount( $email ) {
+    global $tableNamePrefix;
+    $result = pn_queryDatabase( "SELECT num_times_exit_used ".
+                                "FROM $tableNamePrefix"."users ".
+                                "WHERE email = '$email';" );
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows == 1 ) {
+        return pn_mysqli_result( $result, 0, "num_times_exit_used" );
+        }
+    }
+
+
+
+function pn_incrementUserExitCount( $email ) {
+    global $tableNamePrefix;
+    pn_queryDatabase( "UPDATE ".
+                      "$tableNamePrefix"."users ".
+                      "SET num_times_exit_used = num_times_exit_used + 1 ".
+                      "WHERE email = '$email';" );
+    }
 
 
 
@@ -2428,6 +2467,7 @@ function pn_talkAI() {
     $special = strtolower( trim( $clientCommand ) );
     if( $special == "exit" ) {
         // exit back to owned page
+        pn_incrementUserExitCount( $email );
         pn_standardResponseForPage( $email, "owned" );
         return;
         }
@@ -2438,6 +2478,12 @@ function pn_talkAI() {
         pn_standardResponseForPage( $email, "wipe_result" );
         return;
         }
+    else if( $special == "help" ) {
+        // exit to built-in commands page
+        pn_standardResponseForPage( $email, "builtIn" );
+        return;
+        }
+    
     
     
     global $humanTypedPrefix;
