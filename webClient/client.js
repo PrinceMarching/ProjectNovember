@@ -556,6 +556,13 @@ function doKeyPress( e ) {
 		c = String.fromCharCode( e.keyCode );
 		insertStringInTypedCommand( c );
 	}
+	else if( e.keyCode == 22 ) {
+		// unhandled ctrl-v that made it through?
+		// we must be on internet explorer
+		let pasteEvent = document.createEvent('Event');
+		pasteEvent.initEvent( "paste", true, true);
+		window.dispatchEvent( pasteEvent );
+	}
 	else if( e.keyCode == 13 ) {
 		scrollUp = 0;
 		resetCursorFlash();
