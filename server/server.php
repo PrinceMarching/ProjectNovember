@@ -2332,7 +2332,8 @@ function pn_initiateTalkAI( $email, $pickedName ) {
 
     global $tableNamePrefix;
     
-    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+    $query = "SELECT page_name, conversation_buffer ".
+        "FROM $tableNamePrefix"."owned_ai ".
         "WHERE id = '$aiOwnedID';";
 
     $result = pn_queryDatabase( $query );
@@ -2962,7 +2963,7 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
         }
 
 
-    $query = "SELECT * FROM $tableNamePrefix"."pages ".
+    $query = "SELECT display_text FROM $tableNamePrefix"."pages ".
         "WHERE name = '$aiPageName';";
     
     $result = pn_queryDatabase( $query );
