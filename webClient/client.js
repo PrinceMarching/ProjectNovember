@@ -860,19 +860,20 @@ function doKeyDown( e ) {
 
 
 
-window.addEventListener( 'paste', (event) => {
+window.addEventListener( 'paste', doPaste, false );
+
+
+function doPaste( e ) {
     let paste = 
-		( event.clipboardData || window.clipboardData ).getData('text');
+		( e.clipboardData || window.clipboardData ).getData('text');
 	
 	if( paste != "" ) {
 		resetCursorFlash();
 		insertStringInTypedCommand( paste );
 		redrawNow();
 	}
-} );
-
-
-
+}
+	
 
 
 var nextBeep = 0;
