@@ -659,6 +659,7 @@ function openURLNewTab( url, inType ) {
 		var win = window.open();
 		if( inType == 1 ) {
 			win.document.write( "<img src='" + url + "'/>" );
+			win.document.close();
 		}
 	}
 }
@@ -681,6 +682,7 @@ function exportAll() {
 	stringToEncode = origLineBuffer.join( "\n\n" );
 	var win = window.open();
 	win.document.write( "<pre>" + stringToEncode + "</pre>" );
+	win.document.close();
 }
 
 
