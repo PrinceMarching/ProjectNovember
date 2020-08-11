@@ -62,10 +62,23 @@ var scanLinesLoaded = false;
 var vignetteLoaded = false;
 
 function drawString( inString, inX, inY, inCTX,
-					 inColor = "#FFFFFF", inCorruptionFlags = [], 
+					 inColor, inCorruptionFlags, 
 					 // if inv font, non-corrupted characters are drawn
 					 // with index-2 font (inverted)
-					 inInvFont = false ) {
+					 inInvFont ) {
+	
+	// default arguments
+	if( inColor === undefined ) {
+		inColor = "#FFFFFF";
+		}
+	if( inCorruptionFlags === undefined ) {
+		inCorruptionFlags = [];
+	}
+	if( inInvFont === undefined ) {
+		inInvFont = false;
+	}
+
+	
 	if( ! getFontLoaded() ) {
 		return;
 	}
@@ -239,9 +252,17 @@ var liveTypedCursorOffset = 0;
 
 
 function addLineToBuffer( inString, inColor, inMSPerChar, 
-						  inCorruptionChance = 0.0,
-						  inCorruptionSkip = 0 ) {
+						  inCorruptionChance,
+						  inCorruptionSkip ) {
 	
+	// default arguments
+	if( inCorruptionChance === undefined ) {
+		inCorruptionChance = 0.0;
+	}
+	if( inCorruptionSkip === undefined ) {
+		inCorruptionSkip = 0;
+	}
+
 	var origStringArray = inString.split( "" );
 	
 	var charsWide = canvas.width / fontSpacingH - 1;
