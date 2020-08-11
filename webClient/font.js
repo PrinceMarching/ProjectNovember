@@ -43,7 +43,12 @@ var gridSpacing = 32;
 
 
 // returned font is array of images indexed by ascii character indices
-function getColoredFont( inColor, inFontNumber = 0 ) {
+function getColoredFont( inColor, inFontNumber ) {
+	
+	if( inFontNumber === undefined ) {
+		inFontNumber = 0;
+	}
+
 	if( !( inColor in fontArray[ inFontNumber ] ) ) {
 		fontColored = getColoredImage( fontImgs[ inFontNumber ], inColor );
 
