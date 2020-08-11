@@ -1282,8 +1282,6 @@ function pn_showLiveConversation() {
     pn_showLinkHeader();
 
     $id = pn_requestFilter( "id", "/[0-9]+/i", -1 );
-    pn_log( "id = $id" );
-    
     
     global $tableNamePrefix;
     $query = "SELECT conversation_log ".
@@ -1297,7 +1295,6 @@ function pn_showLiveConversation() {
     if( $numRows > 0 ) {
         $c = pn_mysqli_result( $result, 0, "conversation_log" );
 
-        pn_log( "c = $c" );
         echo "<pre style='white-space: pre-wrap;'>$c</pre><br>";
         }
     else {
@@ -2488,6 +2485,9 @@ function pn_talkAI() {
     $aiResponse = "";
 
     $responseCost = 0;
+
+    $startTime = microtime( true );
+    $timeoutCount = 0;
     
     while( ! $aiDone ) {
 
@@ -2520,6 +2520,8 @@ function pn_talkAI() {
                 }
             
             while( $completion == "FAILED" ) {
+                $timeoutCount++;
+                
                 sleep( 5 );
                 // don't $logJSON after we get FAILED back
                 $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
@@ -2657,6 +2659,15 @@ function pn_talkAI() {
         echo "\n[#FF0000] [$defaultPageCharMS] [0] [0] ".
             "CORRUPTION DETECTED - MATRIX DYING";
         }
+
+    
+    if( $timeoutCount > 0 ) {
+        // log the retry total time
+        $deltaTime = microtime( true ) - $startTime;
+        
+        pn_log( "talkAI response timed out $timeoutCount times and took $deltaTime total" );
+        }
+    
     }
 
 
