@@ -125,7 +125,7 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
                         "main", "owned", "error", "matrix_dead",
-                        "wipe_result", "builtIn" );
+                        "wipe_result", "builtIn", "spinUp" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
@@ -2556,9 +2556,10 @@ function pn_talkAI() {
                 // going on
                 $logJSON = true;
                 }
-            
+
+            // 8 second time-out
             $completion = pn_getAICompletion( $newBuffer, $ai_protocol,
-                                              $logJSON );
+                                              $logJSON, 8 );
 
             if( $completion == "UNKNOWN_PROTOCOL" ) {
                 pn_showErrorPage( $email,
@@ -2568,6 +2569,17 @@ function pn_talkAI() {
             
             while( $completion == "FAILED" ) {
                 $timeoutCount++;
+
+                if( $timeoutCount > 1 ) {
+                    // timed out twice
+                    // ai back-end still spinning up
+                    
+                    // don't leave the user hanging here
+                    
+                    // explain situation
+                    pn_standardResponseForPage( $email, "spinUp" );
+                    return;
+                    }
                 
                 sleep( 5 );
                 // don't $logJSON after we get FAILED back
