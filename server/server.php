@@ -2477,6 +2477,8 @@ function pn_talkAI() {
         $query = "DELETE FROM $tableNamePrefix"."owned_ai ".
             "WHERE id = '$aiOwnedID' ";
         pn_queryDatabase( $query );
+
+        sleep( 3 );
         
         pn_standardResponseForPage( $email, "matrix_dead" );
         return;
