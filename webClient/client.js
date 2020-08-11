@@ -620,8 +620,8 @@ function doKeyPress( e ) {
 
 
 function openURLNewTab( url ) {
-	window.open( url );
 	console.log( "Opening url: ".concat( url ) );
+	window.open( url );
 }
 
 
