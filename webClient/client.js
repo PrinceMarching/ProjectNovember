@@ -619,6 +619,12 @@ function doKeyPress( e ) {
 
 
 
+function openURLNewTab( url ) {
+	window.open( url );
+	console.log( "Opening url: ".concat( url ) );
+}
+
+
 function exportAll() {
 	var canvasSub = document.createElement( 'canvas' ),
     ctxSub = canvasSub.getContext( '2d' );
@@ -628,14 +634,16 @@ function exportAll() {
 
 	drawFrameContents( ctxSub, canvasSub, true );
 	url = canvasSub.toDataURL( "image/png" );
-	window.open( url, '_blank');
+
+	openURLNewTab( url );
 
 
 	// now export raw text
 	stringToEncode = origLineBuffer.join( "\n\n" );
 	b64 = btoa( stringToEncode );
 	textURL = "data:text/plain;base64,".concat( b64 );
-	window.open( textURL, '_blank');
+
+	openURLNewTab( textURL );
 }
 
 
