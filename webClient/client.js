@@ -96,7 +96,8 @@ function drawString( inString, inX, inY, inCTX,
 	}
 
 	var drawIndex = 0;
-	var a = Array.from( inString );
+	// split into array of single characters
+	var a = inString.split( "" );
 	var x = inX;
 	a.forEach(
 		function( c ) {
