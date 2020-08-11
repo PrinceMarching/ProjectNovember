@@ -877,6 +877,9 @@ function doPaste( e ) {
     let paste = 
 		( e.clipboardData || window.clipboardData ).getData('text');
 	
+	// filter out non-printable ascii
+	paste = paste.replace( /[^\x20-\x7E]/g, '' );
+
 	if( paste != "" ) {
 		resetCursorFlash();
 		insertStringInTypedCommand( paste );
