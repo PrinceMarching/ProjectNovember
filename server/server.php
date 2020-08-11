@@ -220,6 +220,9 @@ else if( $action == "show_live_conversation" ) {
 else if( $action == "delete_user" ) {
     pn_deleteUser();
     }
+else if( $action == "toggle_conversation_logging" ) {
+    pn_toggleConversationLogging();
+    }
 else if( $action == "logout" ) {
     pn_logout();
     }
@@ -479,7 +482,8 @@ function pn_setupDatabase() {
             // track how many times they've typed exit from chat
             // stop showing the boilerplate help at beginning of chat
             // after they learn it
-            "num_times_exit_used INT NOT NULL );";
+            "num_times_exit_used INT NOT NULL,".
+            "conversations_logged TINYINT NOT NULL );";
 
         $result = pn_queryDatabase( $query );
 
@@ -700,7 +704,7 @@ function pn_addUser() {
         "SET email = '$email', pass_words = '$pass_words', ".
         "fake_last_name = '$fake_last_name', credits = '$credits', ".
         "current_page = '', client_sequence_number = 0, ".
-        "num_times_exit_used = 0;";
+        "num_times_exit_used = 0, conversations_logged = 0 ;";
 
 
     global $pn_mysqlLink;
@@ -877,6 +881,22 @@ function pn_deleteUser() {
     }
 
 
+
+function pn_toggleConversationLogging() {
+    pn_checkPassword( "toggle_conversation_logging" );
+    
+    global $tableNamePrefix;
+
+    $id = pn_requestFilter( "id", "/[0-9]+/i", -1 );
+
+    $email = pn_getEmail( $id );
+    
+    $set = pn_requestFilter( "set", "/[0-1]/", "0" );
+
+    pn_setUserField( $email, "conversations_logged", $set );
+
+    pn_showDetail( false );
+    }
 
 
 
@@ -1185,7 +1205,21 @@ function pn_showDetail( $checkPassword = true ) {
     </FORM>
         </td>
 <?php
-
+             
+             echo "<br>";
+    
+    if( pn_getUserConversationsLogged( $email ) ) {
+        echo "Conversation logging is ON (turn ";
+        echo "<a href='server.php?action=toggle_conversation_logging".
+            "&id=$id&set=0'>".
+            "OFF</a>)";
+        }
+    else {
+        echo "Conversation logging is OFF (turn ";
+        echo "<a href='server.php?action=toggle_conversation_logging".
+            "&id=$id&set=1'>".
+            "ON</a>)";
+        }
 
              // form for deleting user
 ?>
@@ -1964,19 +1998,7 @@ function pn_clientPage() {
 
 
 function pn_getUserID( $email ) {
-    global $tableNamePrefix;
-    
-    
-    $query = "SELECT id ".
-            "FROM $tableNamePrefix"."users WHERE email='$email';";
-    $result = pn_queryDatabase( $query );
-    
-    $numRows = mysqli_num_rows( $result );
-
-    if( $numRows == 1 ) {
-        return pn_mysqli_result( $result, 0, "id" );
-        }
-    return -1;
+    return pn_getUserField( $email, "id", -1 );
     }
 
 
@@ -1999,20 +2021,40 @@ function pn_getEmail( $user_id ) {
 
 
 
-function pn_getUserCredits( $email ) {
+function pn_getUserField( $email, $field_name, $defaultVal ) {
     global $tableNamePrefix;
     
     
-    $query = "SELECT credits ".
+    $query = "SELECT $field_name ".
             "FROM $tableNamePrefix"."users WHERE email='$email';";
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
 
     if( $numRows == 1 ) {
-        return pn_mysqli_result( $result, 0, "credits" );
+        return pn_mysqli_result( $result, 0, "$field_name" );
         }
-    return 0;
+    return $defaultVal;
+    }
+
+
+
+function pn_setUserField( $email, $field_name, $inValue ) {
+    global $tableNamePrefix;
+    
+    
+    $query = "UPDATE ".
+        "$tableNamePrefix"."users SET $field_name = '$inValue' ".
+        "WHERE email='$email';";
+
+    pn_queryDatabase( $query );
+    }
+
+
+
+
+function pn_getUserCredits( $email ) {
+    return pn_getUserField( $email, "credits", 0 );
     }
 
 
@@ -2025,6 +2067,12 @@ function pn_spendUserCredits( $email, $credits ) {
         "SET credits = credits - $credits ".
         "WHERE email='$email';";
     $result = pn_queryDatabase( $query );
+    }
+
+
+
+function pn_getUserConversationsLogged( $email ) {
+    return pn_getUserField( $email, "conversations_logged", 0 );
     }
 
 
@@ -2381,15 +2429,7 @@ function pn_initiateTalkAI( $email, $pickedName ) {
 
 
 function pn_getUserExitCount( $email ) {
-    global $tableNamePrefix;
-    $result = pn_queryDatabase( "SELECT num_times_exit_used ".
-                                "FROM $tableNamePrefix"."users ".
-                                "WHERE email = '$email';" );
-    $numRows = mysqli_num_rows( $result );
-    
-    if( $numRows == 1 ) {
-        return pn_mysqli_result( $result, 0, "num_times_exit_used" );
-        }
+    return pn_getUserField( $email, "num_times_exit_used", 0 );
     }
 
 
@@ -2896,7 +2936,22 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
     $inText = preg_replace( "/\r\n/", "\n", $inText );
 
     
-    if( $inLog ) {
+    
+    
+    $query = "SELECT page_name, user_id, conversation_buffer ".
+        "FROM $tableNamePrefix"."owned_ai ".
+        "WHERE id = '$aiOwnedID';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
+    $user_id = pn_mysqli_result( $result, 0, "user_id" );
+    $conversation_buffer =
+        pn_mysqli_result( $result, 0, "conversation_buffer" );
+
+    if( $inLog &&
+        pn_getUserConversationsLogged( pn_getEmail( $user_id ) ) ) {
+
         $textAdded = pn_mysqlEscape( $inText );
         
         $query = "UPDATE $tableNamePrefix"."owned_ai ".
@@ -2905,16 +2960,6 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
         
         $result = pn_queryDatabase( $query );
         }
-    
-    
-    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
-        "WHERE id = '$aiOwnedID';";
-    
-    $result = pn_queryDatabase( $query );
-    
-    $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
-    $conversation_buffer =
-        pn_mysqli_result( $result, 0, "conversation_buffer" );
 
 
     $query = "SELECT * FROM $tableNamePrefix"."pages ".
@@ -2977,7 +3022,8 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
 function pn_archiveConversation( $aiOwnedID, $inFinalStamp = "" ) {
     global $tableNamePrefix;
     
-    $query = "SELECT page_name, user_id, conversation_log FROM $tableNamePrefix"."owned_ai ".
+    $query = "SELECT page_name, user_id, conversation_log ".
+        "FROM $tableNamePrefix"."owned_ai ".
         "WHERE id = '$aiOwnedID';";
     
     $result = pn_queryDatabase( $query );
@@ -2985,6 +3031,12 @@ function pn_archiveConversation( $aiOwnedID, $inFinalStamp = "" ) {
     $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
     
     $user_id = pn_mysqli_result( $result, 0, "user_id" );
+
+    if( ! pn_getUserConversationsLogged( pn_getEmail( $user_id ) ) ) {
+        // don't log, except for flagged users
+        return;
+        }
+    
     
     $conversation_log = pn_mysqli_result( $result, 0, "conversation_log" );
 
