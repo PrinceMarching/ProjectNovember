@@ -214,6 +214,9 @@ else if( $action == "show_import" ) {
 else if( $action == "show_conversation" ) {
     pn_showConversation();
     }
+else if( $action == "show_live_conversation" ) {
+    pn_showLiveConversation();
+    }
 else if( $action == "delete_user" ) {
     pn_deleteUser();
     }
@@ -1191,7 +1194,9 @@ function pn_showDetail( $checkPassword = true ) {
 <?php
 
              
-    $query = "SELECT page_name, ai_age, length( conversation_buffer ) as len ".
+    $query = "SELECT id, page_name, ai_age, ".
+             "length( conversation_buffer ) as buff_len, ".
+             "length( conversation_log ) as log_len ".
              "FROM $tableNamePrefix"."owned_ai ".
              "WHERE user_id = '$id';";
 
@@ -1203,17 +1208,21 @@ function pn_showDetail( $checkPassword = true ) {
         echo "Owned AIs:<br><br>";
     
         for( $i=0; $i<$numRows; $i++ ) {
+            $id = pn_mysqli_result( $result, $i, "id" );
             $page_name = pn_mysqli_result( $result, $i, "page_name" );
             $age = pn_mysqli_result( $result, $i, "ai_age" );
-            $len = pn_mysqli_result( $result, $i, "len" );
+            $buff_len = pn_mysqli_result( $result, $i, "buff_len" );
+            $log_len = pn_mysqli_result( $result, $i, "log_len" );
             
             echo "<a href='server.php?action=edit_page&name=$page_name'>$page_name</a> ".
-                "($age) [buffer=$len]<br>";
+                "($age) [buffer=$buff_len] ".
+                "[<a href='server.php?action=show_live_conversation".
+                "&id=$id'>log=$log_len</a>]<br>";
             }
         echo "<hr>";
         }
 
-    $query = "SELECT id, page_name, log_time ".
+    $query = "SELECT id, page_name, log_time, length( conversation ) as log_len ".
              "FROM $tableNamePrefix"."conversation_logs ".
              "WHERE email = '$email';";
 
@@ -1228,8 +1237,10 @@ function pn_showDetail( $checkPassword = true ) {
             $id = pn_mysqli_result( $result, $i, "id" );
             $page_name = pn_mysqli_result( $result, $i, "page_name" );
             $time = pn_mysqli_result( $result, $i, "log_time" );
+            $log_len = pn_mysqli_result( $result, $i, "log_len" );
             
-            echo "$time <a href='server.php?action=show_conversation&id=$id'>$page_name</a><br>";
+            echo "$time <a href='server.php?action=show_conversation&id=$id'>$page_name</a> ".
+                "($log_len)<br>";
             }
         echo "<hr>";
         }
@@ -1254,8 +1265,39 @@ function pn_showConversation() {
     $numRows = mysqli_num_rows( $result );
 
     if( $numRows > 0 ) {
-        $c = pn_mysqli_result( $result, $i, "conversation" );
+        $c = pn_mysqli_result( $result, 0, "conversation" );
 
+        echo "<pre style='white-space: pre-wrap;'>$c</pre><br>";
+        }
+    else {
+        echo "Conversation not found for id = $id<br>";
+        }
+    
+    }
+
+
+
+function pn_showLiveConversation() {
+    pn_checkPassword( "show_live_conversation" );
+    pn_showLinkHeader();
+
+    $id = pn_requestFilter( "id", "/[0-9]+/i", -1 );
+    pn_log( "id = $id" );
+    
+    
+    global $tableNamePrefix;
+    $query = "SELECT conversation_log ".
+             "FROM $tableNamePrefix"."owned_ai ".
+             "WHERE id = '$id';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        $c = pn_mysqli_result( $result, 0, "conversation_log" );
+
+        pn_log( "c = $c" );
         echo "<pre style='white-space: pre-wrap;'>$c</pre><br>";
         }
     else {
