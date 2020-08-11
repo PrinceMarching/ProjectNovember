@@ -334,14 +334,15 @@ function pn_setupDatabase() {
         $result = pn_queryDatabase( $query );
 
         echo "<B>$tableName</B> table created<BR>";
+
+        $query = "INSERT INTO $tableName ".
+            "SET last_keep_alive_time = CURRENT_TIMESTAMP;";
+        pn_queryDatabase( $query );
         }
     else {
         echo "<B>$tableName</B> table already exists<BR>";
         }
 
-    $query = "INSERT INTO $tableName ".
-        "SET last_keep_alive_time = CURRENT_TIMESTAMP;";
-    pn_queryDatabase( $query );
     
 
     // these words taken from a cognitive experiment database
@@ -2721,7 +2722,7 @@ function pn_aiServerKeepAlive() {
     
     $numRows = mysqli_num_rows( $result );
     
-    if( $numRows != 1 ) {
+    if( $numRows < 1 ) {
         return;
         }
     
