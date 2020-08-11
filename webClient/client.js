@@ -619,9 +619,19 @@ function doKeyPress( e ) {
 
 
 
-function openURLNewTab( url ) {
+// type = 0  --- normal URL pop-up
+// type = 1  ---  data: url containing image
+function openURLNewTab( url, inType ) {
 	console.log( "Opening url: ".concat( url ) );
-	window.open( url );
+	if( inType == 0 ) {
+		window.open( url );
+	}
+	else {
+		var win = window.open();
+		if( inType == 1 ) {
+			win.document.write( "<img src='" + url + "'/>" );
+		}
+	}
 }
 
 
@@ -635,15 +645,13 @@ function exportAll() {
 	drawFrameContents( ctxSub, canvasSub, true );
 	url = canvasSub.toDataURL( "image/png" );
 
-	openURLNewTab( url );
+	openURLNewTab( url, 1 );
 
 
-	// now export raw text
+	// now export raw text in a pop-up window
 	stringToEncode = origLineBuffer.join( "\n\n" );
-	b64 = btoa( stringToEncode );
-	textURL = "data:text/plain;base64,".concat( b64 );
-
-	openURLNewTab( textURL );
+	var win = window.open();
+	win.document.write( "<pre>" + stringToEncode + "</pre>" );
 }
 
 
