@@ -2584,7 +2584,48 @@ function pn_talkAI() {
         $tryCount = 0;
         
         while( pn_isLineJunk( $gennedLine ) ) {
+
+            if( $tryCount > 5 ) {
+                // spinning our wheels here... AI keeps generating
+                // junk responses
+                // must have backed ourselves into a corner in conversation
+
+                if( $aiResponse == "" ) {
+                    pn_log( "Stuck trying to generate first bit of response ".
+                            "for buffer after $tryCount tries, ".
+                            "wiping and starting over: ".
+                            "'$newBuffer'" );
+                    // probably need to start over, and clear older
+                    // part of buffer
+                    pn_wipeConversationBuffer( $aiOwnedID );
+
+                    $newBuffer = pn_addToConversationBuffer( $aiOwnedID,
+                                                             $appendText );
+                    }
+                else {
+                    pn_log( "Stuck trying to generate continuation response ".
+                            "for aiResponse after $tryCount tries, ".
+                            "wiping response so far and starting over: ".
+                            "'$aiResponse'" );
+                    // we got stuck in the middle of a long, multi-part
+                    // response, where the earlier parts were fine, but
+                    // now we're looping on junk?
+
+                    // just roll back entire long response, and try
+                    // to start that part again, without throwing
+                    // away whole buffer
+                    
+                    // trim response so far off end
+                    $newBuffer = substr( $newBuffer,
+                                         0, -strlen( $aiResponse ) );
+
+                    // clear response so far
+                    $aiResponse;
+                    }
+                $tryCount = 0;
+                }
             
+                
             // AI has generated repeating characters or nonsense
             // with no words.... like   ???   or _____  
             // or just an empty response.
@@ -2617,6 +2658,10 @@ function pn_talkAI() {
                     // ai back-end still spinning up
                     
                     // don't leave the user hanging here
+
+                    // remove what was added to conversation buffer
+                    pn_removeFromConvesationBuffer( $aiOwnedID, $appendText );
+                    
                     
                     // explain situation
                     pn_standardResponseForPage( $email, "spinUp" );
@@ -3005,6 +3050,73 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
         }
 
     $toReturn = $newBuffer;
+    
+
+    // no need to escape string, base64 encoding makes it safe
+    $newBuffer = pn_encryptBuffer( $newBuffer );
+
+    
+    $query = "UPDATE $tableNamePrefix"."owned_ai ".
+        "SET conversation_buffer = '$newBuffer' ".
+        "WHERE id = '$aiOwnedID';";
+
+    $result = pn_queryDatabase( $query );
+
+
+    return $toReturn;
+    }
+
+
+
+// removes string from end
+// undoes las pn_addToConversationBuffer
+function pn_removeFromConvesationBuffer( $aiOwnedID, $inText, $inLog = true ) {
+    global $tableNamePrefix;
+
+    // enforce newline consistency
+    // \r\n  becomes \n
+    // html textarea, which we use to edit forms, inserts \r\n in display_text
+    $inText = preg_replace( "/\r\n/", "\n", $inText );
+
+    
+    
+    $query = "SELECT user_id, conversation_buffer, conversation_log ".
+        "FROM $tableNamePrefix"."owned_ai ".
+        "WHERE id = '$aiOwnedID';";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $user_id = pn_mysqli_result( $result, 0, "user_id" );
+    $conversation_buffer =
+        pn_decryptBuffer( 
+            pn_mysqli_result( $result, 0, "conversation_buffer" ) );
+
+    
+    if( $inLog &&
+        pn_getUserConversationsLogged( pn_getEmail( $user_id ) ) ) {
+
+        $conversation_log = pn_mysqli_result( $result, 0, "conversation_log" );
+
+        // trim chars off end
+        $newLog = substr( $conversation_log,
+                          0, -strlen( $inText ) );
+
+        $newLog = pn_mysqlEscape( $newLog );
+        
+        $query = "UPDATE $tableNamePrefix"."owned_ai ".
+            "SET conversation_log = '$newLog' ".
+            "WHERE id = '$aiOwnedID';";
+        
+        $result = pn_queryDatabase( $query );
+        }
+
+
+    // trim chars off end
+    $newBuffer = substr( $conversation_buffer,
+                         0, -strlen( $inText ) );
+
+    $toReturn = $newBuffer;
+
     
 
     // no need to escape string, base64 encoding makes it safe
