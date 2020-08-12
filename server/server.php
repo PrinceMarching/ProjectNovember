@@ -205,11 +205,20 @@ else if( $action == "delete_page" ) {
 else if( $action == "export_pages" ) {
     pn_exportPages();
     }
+else if( $action == "export_users" ) {
+    pn_exportUsers();
+    }
 else if( $action == "import_pages" ) {
     pn_importPages();
     }
-else if( $action == "show_import" ) {
-    pn_showImport();
+else if( $action == "import_users" ) {
+    pn_importUsers();
+    }
+else if( $action == "show_import_pages" ) {
+    pn_showImportPages();
+    }
+else if( $action == "show_import_users" ) {
+    pn_showImportUsers();
     }
 else if( $action == "show_conversation" ) {
     pn_showConversation();
@@ -1125,6 +1134,8 @@ function pn_showData( $checkPassword = true ) {
 
 
     
+    echo "<hr><a href='server.php?action=export_users'>Export Users</a>";
+    echo "<hr><a href='server.php?action=show_import_users'>Import Users</a>";
 
     echo "<hr>";
          
@@ -1566,7 +1577,7 @@ function pn_showPages() {
             }
         }
     echo "<hr><a href='server.php?action=export_pages'>Export Pages</a>";
-    echo "<hr><a href='server.php?action=show_import'>Import Pages</a>";
+    echo "<hr><a href='server.php?action=show_import_pages'>Import Pages</a>";
     }
 
 
@@ -1702,9 +1713,22 @@ function pn_pageExists( $name ) {
 function pn_exportPages() {
     pn_checkPassword( "export_pages" );
 
+    pn_exportTable( "pages" );
+    }
+
+function pn_exportUsers() {
+    pn_checkPassword( "export_users" );
+
+    pn_exportTable( "users" );
+    }
+
+
+
+function pn_exportTable( $inTableName ) {
+
     global $tableNamePrefix;
     $query = "SELECT * ".
-        "FROM $tableNamePrefix"."pages;";
+        "FROM $tableNamePrefix"."$inTableName;";
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
@@ -1737,14 +1761,31 @@ function pn_exportPages() {
 
     
 
-function pn_showImport() {
-    pn_checkPassword( "show_import" );
+function pn_showImportPages() {
+    pn_checkPassword( "show_import_pages" );
     
     pn_showLinkHeader();
 ?>
     Import pages:
         <FORM ACTION="server.php" METHOD="post">
         <INPUT TYPE="hidden" NAME="action" VALUE="import_pages">
+    <textarea name="text" rows="20" cols="40"></textarea><br>
+      
+    <INPUT TYPE="Submit" VALUE="Import">
+    </FORM>
+<?php
+    
+    }
+
+
+function pn_showImportUsers() {
+    pn_checkPassword( "show_import_users" );
+    
+    pn_showLinkHeader();
+?>
+    Import pages:
+        <FORM ACTION="server.php" METHOD="post">
+        <INPUT TYPE="hidden" NAME="action" VALUE="import_users">
     <textarea name="text" rows="20" cols="40"></textarea><br>
       
     <INPUT TYPE="Submit" VALUE="Import">
@@ -1763,8 +1804,26 @@ function pn_mysqlEscape( $inString ) {
 
 
 function pn_importPages() {
-    pn_checkPassword( "export_pages" );
+    pn_checkPassword( "import_pages" );
 
+    pn_importTable( "pages" );
+    
+    pn_showPages();
+    }
+
+
+function pn_importUsers() {
+    pn_checkPassword( "import_users" );
+
+    pn_importTable( "users" );
+    
+    pn_showData( false );
+    }
+
+
+
+function pn_importTable( $inTableName ) {
+    
     global $tableNamePrefix;
 
     // no filtering
@@ -1789,7 +1848,7 @@ function pn_importPages() {
             }
         $valueLine = join( ",", $parts );
         
-        $query = "REPLACE INTO $tableNamePrefix"."pages ".
+        $query = "REPLACE INTO $tableNamePrefix"."$inTableName ".
             "VALUES ( $valueLine );";
         pn_queryDatabase( $query );
 
@@ -1797,9 +1856,7 @@ function pn_importPages() {
         }
 
 
-    echo "Imported <b>$numImported</b> pages<br>";
-
-    pn_showPages();
+    echo "Imported <b>$numImported</b> into table $inTableName<br>";
     }
 
 
