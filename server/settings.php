@@ -112,6 +112,12 @@ $aiBufferLimit = 2000;
 $aiKeepAliveIntervalSeconds = 15 * 60;
 
 
+// used to generate AES key for encrypting user conversation buffers in
+// the database
+// replace this with your own secret string
+$bufferEncryptionSecret = "3d8f9891437e8f8f42235c21a9e197f384bf3ea1";
+
+
 
 // coreweave transformer URL
 $coreWeaveURL = "http://put_your_url_here";

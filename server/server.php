@@ -2349,7 +2349,8 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
 
     $conversation_buffer =
-        pn_mysqli_result( $result, 0, "conversation_buffer" );
+        pn_decryptBuffer(
+            pn_mysqli_result( $result, 0, "conversation_buffer" ) );
 
 
     $query = "SELECT * FROM $tableNamePrefix"."pages ".
@@ -2948,7 +2949,8 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
     $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
     $user_id = pn_mysqli_result( $result, 0, "user_id" );
     $conversation_buffer =
-        pn_mysqli_result( $result, 0, "conversation_buffer" );
+        pn_decryptBuffer( 
+            pn_mysqli_result( $result, 0, "conversation_buffer" ) );
 
     if( $inLog &&
         pn_getUserConversationsLogged( pn_getEmail( $user_id ) ) ) {
@@ -3004,8 +3006,9 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
 
     $toReturn = $newBuffer;
     
-    
-    $newBuffer = pn_mysqlEscape( $newBuffer );
+
+    // no need to escape string, base64 encoding makes it safe
+    $newBuffer = pn_encryptBuffer( $newBuffer );
 
     
     $query = "UPDATE $tableNamePrefix"."owned_ai ".
@@ -3082,8 +3085,8 @@ function pn_wipeConversationBuffer( $aiOwnedID ) {
     // \r\n  becomes \n
     // html textarea, which we use to edit forms, inserts \r\n in display_text
     $display_text = preg_replace( "/\r\n/", "\n", $display_text );
-    
-    $display_text = pn_mysqlEscape( $display_text );
+
+    $display_text = pn_encryptBuffer( $display_text );
 
     // clear log here, since we saved it
     $query = "UPDATE $tableNamePrefix"."owned_ai ".
@@ -3091,9 +3094,6 @@ function pn_wipeConversationBuffer( $aiOwnedID ) {
         "WHERE id = '$aiOwnedID';";
 
     $result = pn_queryDatabase( $query );
-
-
-    return $display_text;
     }
 
 
@@ -3444,6 +3444,41 @@ function pn_formatTextAsLines( $email, $text, $display_color, $char_ms,
         }
         
     return $result;
+    }
+
+
+
+// returns base64 ciphertext
+function pn_encryptBuffer( $inText ) {
+    global $bufferEncryptionSecret;
+
+    $key = pn_hmac_sha1_raw( $bufferEncryptionSecret,
+                             $bufferEncryptionSecret );
+    
+    $ivlen = openssl_cipher_iv_length( $cipher="AES-128-CBC" );
+    $iv = openssl_random_pseudo_bytes( $ivlen );
+    $ciphertext_raw = openssl_encrypt( $inText, $cipher, $key,
+                                       $options=OPENSSL_RAW_DATA, $iv );
+
+    $ciphertext = base64_encode( $iv . $ciphertext_raw );
+    return $ciphertext;
+    }
+
+
+
+function pn_decryptBuffer( $inBase64CipherText ) {
+    global $bufferEncryptionSecret;
+
+    $key = pn_hmac_sha1_raw( $bufferEncryptionSecret,
+                             $bufferEncryptionSecret );
+    
+    $c = base64_decode( $inBase64CipherText );
+    $ivlen = openssl_cipher_iv_length( $cipher="AES-128-CBC" );
+    $iv = substr( $c, 0, $ivlen );
+    $ciphertext_raw = substr( $c, $ivlen );
+    $original_plaintext = openssl_decrypt( $ciphertext_raw, $cipher, $key,
+                                           $options=OPENSSL_RAW_DATA, $iv );
+    return $original_plaintext;
     }
 
 
