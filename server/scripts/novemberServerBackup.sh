@@ -2,7 +2,7 @@ passwordNovemberServer="secret"
 
 date=`date +"%Y_%b_%d_%a"`
 
-if [ ! -d "~/backups" ]
+if [ ! -d ~/backups ]
 then
 	mkdir ~/backups
 fi
