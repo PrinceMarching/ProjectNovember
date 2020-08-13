@@ -25,7 +25,7 @@ do
 		echo $result
 		keepGoing=0
 	else
-		echo "Timed out, trying again."
+		echo "Timed out, trying again. ($url)"
 		echo $result
 	fi
 done

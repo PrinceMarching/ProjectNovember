@@ -11,6 +11,6 @@ do
 		echo $result
 		keepGoing=0
 	else
-		echo "Timed out, trying again."
+		echo "Timed out, trying again. ($url)"
 	fi
 done
