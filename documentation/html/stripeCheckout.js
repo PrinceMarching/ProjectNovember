@@ -1,6 +1,6 @@
 
 	
-var publishableKey = "pk_live_51HFoSwLc2fQJ3IRBOgRdnkYfUxxom8YwK15lqsVBqwqJYv04rIjIObmBsWY4XStPO3wIbimBrXizwPKKXin95m9900";
+var publishableKey = "pk_live_51HFoSwLc2fQJ3IRBCJ0eqIwT2W6QOOhlOAhAe2Z8Fob5F1fCrJDyluhYh5tPRxPFPurOaNfagom7Nre4hTOFpDLC002NJC9MLU";
 
 //publishableKey = "pk_live_IRTvo1yCjcLPyuRxNfFUPNQb";
 
@@ -12,7 +12,7 @@ function stripeCheckout() {
 		.redirectToCheckout({
 			lineItems: [
 				// Replace with the ID of your price
-				{price: 'prod_HpUW2A9Pn0dJjz', quantity: 1},
+				{price: 'price_1HFpXiLc2fQJ3IRBSuwRoTGA', quantity: 1},
 			],
 			mode: 'payment',
 			successUrl: 'https://your-website.com/success',
