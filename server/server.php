@@ -232,6 +232,9 @@ else if( $action == "delete_user" ) {
 else if( $action == "toggle_conversation_logging" ) {
     pn_toggleConversationLogging();
     }
+else if( $action == "purchase" ) {
+    pn_purchase();
+    }
 else if( $action == "logout" ) {
     pn_logout();
     }
@@ -3650,6 +3653,17 @@ function pn_decryptBuffer( $inBase64CipherText ) {
     return $original_plaintext;
     }
 
+
+
+function pn_purchase() {
+    $entityBody = file_get_contents( 'php://input' );
+
+    $url = $_SERVER['REQUEST_URI'];
+    
+    pn_log( "Purchase through url $url with body: $entityBody" );
+    }
+
+    
 
 
 
