@@ -15,8 +15,8 @@ function stripeCheckout() {
 				{price: 'price_1HFpXiLc2fQJ3IRBSuwRoTGA', quantity: 1},
 			],
 			mode: 'payment',
-			successUrl: 'https://projectnovember.net/success',
-			cancelUrl: 'https://projectnovember.net/buy.html',
+			successUrl: 'https://projectdecember.net/success',
+			cancelUrl: 'https://projectdecember.net/buy.html',
 		})
 		.then(function(result) {
 			// If `redirectToCheckout` fails due to a browser or network
