@@ -3654,13 +3654,30 @@ function pn_decryptBuffer( $inBase64CipherText ) {
     }
 
 
+function getHTTPHeaders() {
+    $headers = [];
+    foreach( $_SERVER as $name => $value ) {
+        if (substr($name, 0, 5) == 'HTTP_') {
+            $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            }
+        }
+    return $headers;
+    }
+
 
 function pn_purchase() {
+    $headerArray = getHTTPHeaders();
+
+    $headerString = "";
+    foreach( $headerArray as $name => $value ) {
+        $headerString .= "\n$name: $value";
+        }
+    
     $entityBody = file_get_contents( 'php://input' );
 
     $url = $_SERVER['REQUEST_URI'];
     
-    pn_log( "Purchase through url $url with body: $entityBody" );
+    pn_log( "Purchase through url $url with headers $headerString and body: $entityBody" );
     }
 
     
