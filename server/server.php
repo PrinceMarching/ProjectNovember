@@ -3778,7 +3778,7 @@ function pn_purchase() {
 
             if( $credits == 0 ) {
                 pn_log( "FastSpring order specifies no credits? ".
-                        "(tags = $tags" );
+                        "(tags = $tags)" );
                 $logAll = true;
                 }
             }
