@@ -3676,6 +3676,10 @@ function pn_purchase() {
     $email = "";
     $credits = 0;
     $paymentSource = "";
+
+    // FastSpring provides user with a response
+    $print_response = "";
+    
     
     if( array_key_exists( "Stripe-Signature", $headerArray ) ) {
         $paymentSource = "Stripe";
@@ -3745,6 +3749,7 @@ function pn_purchase() {
             $logAll = true;
             }
         else {
+            $print_response = "(Check email for details)";
             
             $email = ts_requestFilter( "email",
                                        "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
@@ -3850,6 +3855,9 @@ function pn_purchase() {
             }
         }
 
+    if( $print_response != "" ) {
+        echo $print_response;
+        }
     
     
     if( $logAll ) {
