@@ -3654,31 +3654,220 @@ function pn_decryptBuffer( $inBase64CipherText ) {
     }
 
 
+
 function getHTTPHeaders() {
     $headers = [];
     foreach( $_SERVER as $name => $value ) {
         if (substr($name, 0, 5) == 'HTTP_') {
-            $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+            $headers[str_replace(' ', '-', ucwords(strtolower(
+                 str_replace('_', ' ', substr($name, 5)))))] = $value;
             }
         }
     return $headers;
     }
 
 
+
 function pn_purchase() {
     $headerArray = getHTTPHeaders();
 
-    $headerString = "";
-    foreach( $headerArray as $name => $value ) {
-        $headerString .= "\n$name: $value";
-        }
-    
-    $entityBody = file_get_contents( 'php://input' );
+    $logAll = false;
 
-    $url = $_SERVER['REQUEST_URI'];
+    $email = "";
+    $credits = 0;
+    $paymentSource = "";
     
-    pn_log( "Purchase through url $url with headers $headerString and body: $entityBody" );
+    if( array_key_exists( "Stripe-Signature", $headerArray ) ) {
+        $paymentSource = "Stripe";
+        
+        // a payment from Stripe
+
+        $jsonBody = file_get_contents( 'php://input' );
+        
+        global $stripeWebhookSecret;
+
+        $sig = $headerArray[ "Stripe-Signature" ];
+        $sigParts = preg_split( "/,/", $sig );
+
+        $badSig = true;
+        
+        if( count( $sigParts ) == 2 ) {
+            $timeParts = preg_split( "/=/", $sigParts[0] );
+            $valParts = preg_split( "/=/", $sigParts[1] );
+
+            if( $valParts[0] == "v1" ) {
+                $signed_payload = $timeParts[1] . "." . $jsonBody;
+
+                $hmac = pn_hmac_sha256( $stripeWebhookSecret, $signed_payload );
+
+                if( strtolower( $hmac ) == strtolower( $valParts[1] ) ) {
+                    $badSig = false;
+                    }
+                }
+            }
+
+        
+        if( $badSig ) {
+            pn_log( "Bad signature from Stripe" );
+            $logAll = true;
+            }
+        else {
+            // good signature
+            $a = json_decode( $jsonBody, true );
+            $cents = $a['data']['object']['amount'];
+
+            global $creditsPerPenny;
+
+            $credits = $cents * $creditsPerPenny;
+            $email = $a['data']['object']['billing_details']['email'];
+            }
+        }
+    else {
+        // a payment from FastSpring
+        $paymentSource = "FastSpring";
+        
+        global $fastSpringPrivateKey, $fastSpringTagCreditMap;
+        
+        $security_data = $_REQUEST[ "security_data" ];
+        $security_hash = $_REQUEST[ "security_hash" ];
+
+        $string_to_hash = $security_data . $privateKey;
+    
+        $correct_hash = md5( $string_to_hash );
+    
+
+        if( $correct_hash != $security_hash ) {
+            pn_log( "FastSpring sale security check failed, from $remoteIP, ".
+                    "data = \"$security_data\", hash = \"$security_hash\",".
+                    "looking for hash = \"$correct_hash\"," .
+                    "(data hashed = \"$string_to_hash\")" );
+        
+            $logAll = true;
+            }
+        else {
+            
+            $email = ts_requestFilter( "email",
+                                       "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
+                                       "" );
+            
+            $tags = ts_requestFilter( "tags", "/[A-Z0-9_,-]+/i" );
+            
+            $separateTags = preg_split( "/,/", $tags );
+            
+            $credits = 0;
+            
+            // find a tag specifying how many credits they bought
+            foreach( $separateTags as $t ) {
+                if( array_key_exists( $t,
+                                      $fastSpringTagCreditMap  ) ) {
+                    
+                    $credits = $fastSpringTagCreditMap[ $t ];
+                    }
+                }
+            }
+        }
+
+    if( $email != "" && $credits != 0 ) {
+                    
+        $bonus = 0;
+        
+        if( $credits > 0 ) {
+            global $creditPurchaseBonusMap;
+            
+            if( array_key_exists( $credits, $creditPurchaseBonusMap ) ) {
+                $bonus = $creditPurchaseBonusMap[ $credits ];
+                }
+            }
+        
+        $totalNewCredits = $credits + $bonus;
+        
+        if( $totalNewCredits > 0 ) {
+            global $tableNamePrefix;
+
+            $id = pn_getUserID( $email );
+            
+            if( $id == -1 ) {
+                // don't check for duplicate email here
+                // we already know that email doesn't exist
+                
+                $pass_words = pn_generateRandomPasswordSequence( $email );
+                $fake_last_name = pn_generateRandomLastName();
+                
+                $query =
+                    "INSERT INTO $tableNamePrefix"."users ".
+                    "SET email = '$email', pass_words = '$pass_words', ".
+                    "fake_last_name = '$fake_last_name', ".
+                    "credits = '$totalNewCredits', ".
+                    "current_page = '', client_sequence_number = 0, ".
+                    "num_times_exit_used = 0, conversations_logged = 0 ;";
+                
+                $result = pn_queryDatabase( $query );
+                
+                pn_log( "Creating user account for $email with ".
+                        "$totalNewCredits starting credits ".
+                        "(payment source: $paymentSource)" );
+                }
+            else {
+                $query = "UPDATE $tableNamePrefix"."users ".
+                    "SET credits = credits + $totalNewCredits ".
+                    "WHERE id = '$id';";
+                $result = pn_queryDatabase( $query );
+
+                pn_log( "Adding $totalNewCredits credits for $email ".
+                        "(payment source: $paymentSource)" );
+                }
+
+
+            $query = "SELECT credits, pass_words ".
+                "FROM $tableNamePrefix"."users ".
+                "WHERE id = '$id';";
+
+            $result = pn_queryDatabase( $query );
+            $numRows = mysqli_num_rows( $result );
+
+            if( $numRows == 1 ) {
+
+                $credits = pn_mysqli_result( $result, 0, "credits" );
+                $pass_words = pn_mysqli_result( $result, 0, "pass_words" );
+        
+                // send them an email
+
+                global $terminalURL;
+                
+                pn_mail( $email,
+                         "PROJECT DECEMBER account details",
+                         "Your PROJECT DECEMBER account now has $credits ".
+                         "Compute Credits.\n\n".
+                         "You can log in with these details:\n\n".
+                         "email:  $email\n".
+                         "secret words:  $pass_words\n\n\n".
+                         "Go here to log in:\n".
+                         "$terminalURL\n\n\n".
+                         "Enjoy!\n".
+                         "Jason\n\n",
+                         true );
+                }
+            }
+        }
+
+    
+    
+    if( $logAll ) {
+        // log for debugging
+        $headerString = "";
+        foreach( $headerArray as $name => $value ) {
+            $headerString .= "\n$name: $value";
+            }
+        
+        $entityBody = file_get_contents( 'php://input' );
+
+        $url = $_SERVER['REQUEST_URI'];
+        
+        pn_log( "Purchase through url $url with headers ".
+                "$headerString and body: $entityBody" );
+        }
     }
+
 
     
 
@@ -4217,6 +4406,12 @@ function pn_hmac_sha1_raw( $inKey, $inData ) {
     } 
 
 
+
+function pn_hmac_sha256( $inKey, $inData ) {
+    return hash_hmac( "sha256", 
+                      $inData, $inKey );
+    } 
+
  
  
  
@@ -4248,6 +4443,77 @@ function pn_hexDecodeToBitString( $inHexString ) {
 function pn_arrayRemoveByValue( &$inArray, $inValue ) {
     if( ( $key = array_search( $inValue, $inArray ) ) !== false ) {
         unset( $inArray[$key] );
+        }
+    }
+
+
+
+
+
+function pn_mail( $inEmail,
+                  $inSubject,
+                  $inBody,
+                  // true for transactional emails that should use
+                  // a different SMTP
+                  $inTrans = false ) {
+    
+    global $useSMTP, $siteEmailAddress, $siteEmailDomain;
+
+    if( $useSMTP ) {
+        require_once "Mail.php";
+
+        global $smtpHost, $smtpPort, $smtpUsername, $smtpPassword;
+
+        $messageID = "<" . uniqid() . "@$siteEmailDomain>";
+        
+        $headers = array( 'From' => $siteEmailAddress,
+                          'To' => $inEmail,
+                          'Subject' => $inSubject,
+                          'Date' => date( "r" ),
+                          'Message-Id' => $messageID );
+        $smtp;
+
+        if( $inTrans ) {
+            global $smtpHostTrans, $smtpPortTrans,
+                $smtpUsernameTrans, $smtpPasswordTrans;
+
+            $smtp = Mail::factory( 'smtp',
+                                   array ( 'host' => $smtpHostTrans,
+                                           'port' => $smtpPortTrans,
+                                           'auth' => true,
+                                           'username' => $smtpUsernameTrans,
+                                           'password' => $smtpPasswordTrans ) );
+            }
+        else {
+            $smtp = Mail::factory( 'smtp',
+                                   array ( 'host' => $smtpHost,
+                                           'port' => $smtpPort,
+                                           'auth' => true,
+                                           'username' => $smtpUsername,
+                                           'password' => $smtpPassword ) );
+            }
+        
+
+        $mail = $smtp->send( $inEmail, $headers, $inBody );
+
+
+        if( PEAR::isError( $mail ) ) {
+            pn_log( "Email send failed:  " .
+                    $mail->getMessage() );
+            return false;
+            }
+        else {
+            return true;
+            }
+        }
+    else {
+        // raw sendmail
+        $mailHeaders = "From: $siteEmailAddress";
+        
+        return mail( $inEmail,
+                     $inSubject,
+                     $inBody,
+                     $mailHeaders );
         }
     }
 

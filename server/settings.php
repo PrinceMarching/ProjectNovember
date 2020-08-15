@@ -11,6 +11,8 @@ $databaseName = "test";
 // The URL of to the server.php script.
 $fullServerURL = "http://localhost/jcr13/novemberServer/server.php";
 
+$terminalURL = "http://localhost/jcr13/ProjectNovember/index.html";
+
 
 
 // End Basic settings
@@ -121,6 +123,70 @@ $bufferEncryptionSecret = "3d8f9891437e8f8f42235c21a9e197f384bf3ea1";
 
 // coreweave transformer URL
 $coreWeaveURL = "http://put_your_url_here";
+
+
+// replace with live secret from Stripe.
+$stripeWebhookSecret = "whsec_DOAaOfi6oovfI9anrb6pSy3ofEF3uIWJ";
+
+$fastSpringPrivateKey = "secret";
+
+
+$creditsPerPenny = 3;
+
+
+$creditPurchaseBonusMap = array( 1500 => 0,
+                                 600 => 0,
+                                 1200 => 100,
+                                 2400 => 300,
+                                 4800 => 700 );
+
+
+
+$fastSpringTagCreditMap = array( "pn1500" => 1500,
+                                 "pn600" => 600,
+                                 "pn1200" => 1200,
+                                 "pn2400" => 2400,
+                                 "pn4800" => 4800 );
+
+
+
+
+
+// SMTP settings
+
+// if off, then raw sendmail is used instead 
+$useSMTP = 0;
+
+// SMTP requires that the PEAR Mail package is installed
+// set the include path here for Mail.php, if needed:
+/*
+ini_set( 'include_path',
+         ini_get( 'include_path' ) . PATH_SEPARATOR . '/home/jcr13/php' );
+*/
+
+$smtpHost = "ssl://mail.server.com";
+
+$smtpPort = "465";
+
+$smtpUsername = "jason@server.com";
+
+$smtpPassword = "secret";
+
+
+
+// separate SMTP for mission-critical, transactional emails (like download code
+// emails)
+// Defaults to being same as the above SMTP, which is used for bulk messages
+//  (like a note sent to everyone).
+$smtpHostTrans = $smtpHost;
+
+$smtpPortTrans = $smtpPort;
+
+$smtpUsernameTrans = $smtpUsername;
+
+$smtpPasswordTrans = $smtpPassword;
+
+
 
 
 ?>
