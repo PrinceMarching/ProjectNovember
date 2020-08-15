@@ -3837,7 +3837,7 @@ function pn_purchase() {
 
             $query = "SELECT credits, pass_words ".
                 "FROM $tableNamePrefix"."users ".
-                "WHERE id = '$id';";
+                "WHERE email = '$email';";
 
             $result = pn_queryDatabase( $query );
             $numRows = mysqli_num_rows( $result );
