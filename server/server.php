@@ -3731,20 +3731,22 @@ function pn_purchase() {
         $paymentSource = "FastSpring";
         
         global $fastSpringPrivateKey, $fastSpringTagCreditMap;
+
         
-        $security_data = $_REQUEST[ "security_data" ];
-        $security_hash = $_REQUEST[ "security_hash" ];
+        // security protocol has changed
+        // (ticketServer code is actually out of date now
+        ksort( $_REQUEST );
+        $hashparam = 'security_request_hash';
+        $data = '';
+        /* USE urldecode($val) IF YOUR SERVER DOES NOT AUTOMATICALLY */
+        foreach ($_REQUEST as $key => $val) {
+            if( $key != $hashparam ) {
+                $data .= $val;
+                }
+            }
 
-        $string_to_hash = $security_data . $privateKey;
-    
-        $correct_hash = md5( $string_to_hash );
-    
-
-        if( $correct_hash != $security_hash ) {
-            pn_log( "FastSpring sale security check failed, from $remoteIP, ".
-                    "data = \"$security_data\", hash = \"$security_hash\",".
-                    "looking for hash = \"$correct_hash\"," .
-                    "(data hashed = \"$string_to_hash\")" );
+        if( md5( $data . $fastSpringPrivateKey ) != $_REQUEST[$hashparam] ) {
+            pn_log( "FastSpring sale security check failed, from $remoteIP" );
         
             $logAll = true;
             }
