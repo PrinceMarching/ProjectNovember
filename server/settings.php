@@ -154,6 +154,11 @@ $fastSpringTagCreditMap = array( "pn1500" => 1500,
 
 // SMTP settings
 
+// parameters for emails that are sent out
+$siteEmailAddress = "Jason Rohrer <jcr13@cornell.edu>";
+$siteEmailDomain = "cornell.edu";
+
+
 // if off, then raw sendmail is used instead 
 $useSMTP = 0;
 
