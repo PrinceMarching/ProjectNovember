@@ -3738,8 +3738,7 @@ function pn_purchase() {
         ksort( $_REQUEST );
         $hashparam = 'security_request_hash';
         $data = '';
-        /* USE urldecode($val) IF YOUR SERVER DOES NOT AUTOMATICALLY */
-        foreach ($_REQUEST as $key => $val) {
+        foreach( $_REQUEST as $key => $val ) {
             if( $key != $hashparam ) {
                 $data .= $val;
                 }
@@ -3753,11 +3752,11 @@ function pn_purchase() {
         else {
             $print_response = "(Check email for details)";
             
-            $email = ts_requestFilter( "email",
+            $email = pn_requestFilter( "email",
                                        "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
                                        "" );
             
-            $tags = ts_requestFilter( "tags", "/[A-Z0-9_,-]+/i" );
+            $tags = pn_requestFilter( "tags", "/[A-Z0-9_,-]+/i" );
             
             $separateTags = preg_split( "/,/", $tags );
             
