@@ -3724,6 +3724,11 @@ function pn_purchase() {
 
             $credits = $cents * $creditsPerPenny;
             $email = $a['data']['object']['billing_details']['email'];
+
+            if( $credits == 0 ) {
+                pn_log( "Stripe order specifies no credits?" );
+                $logAll = true;
+                }
             }
         }
     else {
@@ -3756,7 +3761,7 @@ function pn_purchase() {
                                        "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
                                        "" );
             
-            $tags = pn_requestFilter( "tags", "/[A-Z0-9_,-]+/i" );
+            $tags = pn_requestFilter( "tags", "/[A-Z0-9_,-]+/i", "" );
             
             $separateTags = preg_split( "/,/", $tags );
             
@@ -3769,6 +3774,12 @@ function pn_purchase() {
                     
                     $credits = $fastSpringTagCreditMap[ $t ];
                     }
+                }
+
+            if( $credits == 0 ) {
+                pn_log( "FastSpring order specifies no credits? ".
+                        "(tags = $tags" );
+                $logAll = true;
                 }
             }
         }
