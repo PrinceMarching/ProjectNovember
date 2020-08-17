@@ -7,7 +7,11 @@ var publishableKey = "pk_live_51HFoSwLc2fQJ3IRBCJ0eqIwT2W6QOOhlOAhAe2Z8Fob5F1fCr
 
 var stripe = Stripe( publishableKey );
 
-function stripeCheckout() {
+function stripeCheckout( email, numCredits ) {
+	// fixme:
+	// handle email being blank (for buy.php)
+	// handle numCredits by mapping to a stripe price code
+
 	stripe
 		.redirectToCheckout({
 			lineItems: [
