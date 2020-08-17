@@ -134,8 +134,9 @@ $fastSpringPrivateKey = "secret";
 $creditsPerPenny = 3;
 
 
-$creditPurchaseBonusMap = array( 1500 => 0,
-                                 600 => 0,
+// also use this for list of credits that can be purchased after initial
+// purchase
+$creditPurchaseBonusMap = array( 600 => 0,
                                  1200 => 100,
                                  2400 => 300,
                                  4800 => 700 );
