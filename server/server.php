@@ -491,6 +491,7 @@ function pn_setupDatabase() {
             "current_page VARCHAR(254) NOT NULL," .
             // for use with client connections
             "client_sequence_number INT NOT NULL,".
+            "index( client_sequence_number ),".
             // track how many times they've typed exit from chat
             // stop showing the boilerplate help at beginning of chat
             // after they learn it
@@ -710,12 +711,13 @@ function pn_addUser() {
     
     $pass_words = pn_generateRandomPasswordSequence( $email );
     $fake_last_name = pn_generateRandomLastName();
-    
+
+    $seq = pn_getStartingSequenceNumber( $email );
 
     $query = "INSERT INTO $tableNamePrefix"."users ".
         "SET email = '$email', pass_words = '$pass_words', ".
         "fake_last_name = '$fake_last_name', credits = '$credits', ".
-        "current_page = '', client_sequence_number = 0, ".
+        "current_page = '', client_sequence_number = '$seq', ".
         "num_times_exit_used = 0, conversations_logged = 0 ;";
 
 
@@ -1872,6 +1874,33 @@ function pn_echoPageText( $email, $inName ) {
     echo $text;
     }
 
+
+
+
+function pn_getStartingSequenceNumber( $inEmail ) {
+    global $tableNamePrefix;
+
+    // max returns NULL if no rows, so coalesce
+    $query = "SELECT COALESCE( MAX( client_sequence_number ), 0 ) ".
+        "FROM $tableNamePrefix".
+        "users;";
+    $result = pn_queryDatabase( $query );
+
+    $maxNum = pn_mysqli_result( $result, 0, 0 );
+    
+    $maxSeq = floor( $maxNum / 4 );
+
+    global $passWordSelectionSecret;
+
+    $hmac = pn_hmac_sha1( $passWordSelectionSecret, $inEmail );
+
+    $intVal = crc32( $hmac );
+
+    mt_srand( $intVal );
+
+    return mt_rand( 0, $maxSeq );
+    }
+
     
 
 
@@ -1894,11 +1923,9 @@ function pn_getClientSequenceNumber() {
     $seq = pn_getClientSequenceNumberForEmail( $email );
 
     if( $seq == -1 ) {
-        $rawEmail = $_REQUEST[ "email" ];
-        pn_log( "getClientSequenceNumber not found for email '$rawEmail'" );
-
-        echo "DENIED";
-        return;
+        // return a dummy sequence number for emails that don't exist
+        // thus attackers can't fish for account existence
+        $seq = pn_getStartingSequenceNumber( $email );
         }
     
     
@@ -3827,13 +3854,15 @@ function pn_purchase() {
                 
                 $pass_words = pn_generateRandomPasswordSequence( $email );
                 $fake_last_name = pn_generateRandomLastName();
+
+                $seq = pn_getStartingSequenceNumber( $email );
                 
                 $query =
                     "INSERT INTO $tableNamePrefix"."users ".
                     "SET email = '$email', pass_words = '$pass_words', ".
                     "fake_last_name = '$fake_last_name', ".
                     "credits = '$totalNewCredits', ".
-                    "current_page = '', client_sequence_number = 0, ".
+                    "current_page = '', client_sequence_number = '$seq', ".
                     "num_times_exit_used = 0, conversations_logged = 0 ;";
                 
                 $result = pn_queryDatabase( $query );
