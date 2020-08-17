@@ -492,6 +492,7 @@ function pn_setupDatabase() {
             // for use with client connections
             "client_sequence_number INT NOT NULL,".
             "index( client_sequence_number ),".
+            "last_good_hash_time DATETIME NOT NULL,".
             // track how many times they've typed exit from chat
             // stop showing the boilerplate help at beginning of chat
             // after they learn it
@@ -718,6 +719,7 @@ function pn_addUser() {
         "SET email = '$email', pass_words = '$pass_words', ".
         "fake_last_name = '$fake_last_name', credits = '$credits', ".
         "current_page = '', client_sequence_number = '$seq', ".
+        "last_good_hash_time = CURRENT_TIMESTAMP, ".
         "num_times_exit_used = 0, conversations_logged = 0 ;";
 
 
@@ -1950,6 +1952,32 @@ function pn_getClientSequenceNumberForEmail( $inEmail ) {
         }
     else {
         return pn_mysqli_result( $result, 0, "client_sequence_number" );
+        }
+    }
+
+
+
+function pn_lastGoodHashWasLongTimeAgo( $inEmail ) {
+    global $tableNamePrefix;
+    
+    $query = "SELECT ".
+        "TIMESTAMPDIFF( MINUTE, last_good_hash_time, CURRENT_TIMESTAMP ) ".
+        "FROM $tableNamePrefix"."users ".
+        "WHERE email = '$inEmail';";
+    $result = pn_queryDatabase( $query );
+
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows < 1 ) {
+        return true;
+        }
+    else {
+        $minutes = pn_mysqli_result( $result, 0, 0 );
+        pn_log( "$query     Minutes = $minutes" );
+        if( $minutes < 30 ) {
+            return false;
+            }
+        return true;
         }
     }
 
@@ -3340,15 +3368,46 @@ function pn_checkClientSeqHash( $email ) {
     $computedHashValue =
         strtoupper( pn_hmac_sha1( $pass_words, $sequence_number ) );
 
+
+    $attackSleepTime = 3;
     
     
     if( $computedHashValue != $hash_value ) {
         pn_log( "checkClientSeqHash denied, hash check failed" );
 
+        // ALWAYS sleep on hash failure
+        // thus, attacker can't tell difference between an active and
+        // inactive account, and can't brute force a bunch of hash attempts
+        // quickly when user is online and active
+
+        // downside:  if user types a bad password, they have to wait to
+        // try again, but this is an okay trade-off
+        sleep( $attackSleepTime );
+        
         echo "DENIED";
         die();
         }
 
+    
+    if( pn_lastGoodHashWasLongTimeAgo( $email ) ) {
+        // slow down the first request
+        // this prevents brute force attacks when account owner
+        // has been offline for a while
+
+        // first valid login, after being away for a while,
+        // will take 3 seconds, but that's okay
+
+        // trying all possible passwords on an inactive account will take
+        // > 3000 years.
+
+        // note that we must do this on success, instead of returning
+        // immediately, so that attacker can't tell difference between
+        // success and failure by how long it takes
+        // (otherwise, they could wait 1 second, and if no response, assume
+        // it's a failure, and close connection to try again)
+        sleep( $attackSleepTime );
+        }
+    
     
     return $trueSeq;
     }
@@ -3380,7 +3439,8 @@ function pn_checkAndUpdateClientSeqNumber() {
         }
     else {
         $query = "UPDATE $tableNamePrefix". "users SET " .
-            "client_sequence_number = client_sequence_number + 1 ".
+            "client_sequence_number = client_sequence_number + 1, ".
+            "last_good_hash_time = CURRENT_TIMESTAMP ".
             "WHERE email = '$email';";
         pn_queryDatabase( $query );
         }
@@ -3863,6 +3923,7 @@ function pn_purchase() {
                     "fake_last_name = '$fake_last_name', ".
                     "credits = '$totalNewCredits', ".
                     "current_page = '', client_sequence_number = '$seq', ".
+                    "last_good_hash_time = CURRENT_TIMESTAMP, ".
                     "num_times_exit_used = 0, conversations_logged = 0 ;";
                 
                 $result = pn_queryDatabase( $query );
