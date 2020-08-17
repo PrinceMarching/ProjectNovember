@@ -3694,22 +3694,40 @@ function pn_purchase() {
         $sigParts = preg_split( "/,/", $sig );
 
         $badSig = true;
-        
-        if( count( $sigParts ) == 2 ) {
-            $timeParts = preg_split( "/=/", $sigParts[0] );
-            $valParts = preg_split( "/=/", $sigParts[1] );
 
-            if( $valParts[0] == "v1" ) {
-                $signed_payload = $timeParts[1] . "." . $jsonBody;
+        $partCount = count( $sigParts );
 
-                $hmac = pn_hmac_sha256( $stripeWebhookSecret, $signed_payload );
+        // associative array mapping signature part
+        // names to values
+        $partArray = array();
 
-                if( strtolower( $hmac ) == strtolower( $valParts[1] ) ) {
-                    $badSig = false;
-                    }
+        foreach( $sigParts as $p ) {
+            $subParts = preg_split( "/=/", $p );
+            if( count( $subParts ) == 2 ) {
+                // name = value
+                $partArray[ $subParts[0] ] = $subParts[1];
                 }
             }
 
+        // need at least timestamp and v1 sig
+        if( array_key_exists( "t", $partArray ) &&
+            array_key_exists( "v1", $partArray ) ) {
+
+            $signed_payload = $partArray[ "t" ] . "." . $jsonBody;
+
+            $hmac = pn_hmac_sha256( $stripeWebhookSecret, $signed_payload );
+            $sentHmac = $partArray[ "v1" ];
+
+            if( strtolower( $hmac ) == strtolower( $sentHmac ) ) {
+                $badSig = false;
+                }
+            else {
+                pn_log( "Strip hash mismatch.  We got $hmac.  Sig: $sig" );
+                }
+            }
+        else {
+            pn_log( "Stripe sig does not have t and v1 components: $sig" );
+            }
         
         if( $badSig ) {
             pn_log( "Bad signature from Stripe" );
