@@ -11,7 +11,7 @@ src: url("texgyreadventor-regular.otf") format("opentype");
 
 
 <center>
-<a href="buy.php">buy</a> --|-- <a href="sample.html">sample</a> --|-- <a href="terminal/">terminal</a> --|-- made by <a href="http://hcsoftware.sourceforge.net/jason-rohrer/">Jason Rohrer</a>
+<a href="https://projectdecember.net/buy.php">buy</a> --|-- <a href="sample.html">sample</a> --|-- <a href="terminal/">terminal</a> --|-- made by <a href="http://hcsoftware.sourceforge.net/jason-rohrer/">Jason Rohrer</a>
 </center>
 
 <br>
