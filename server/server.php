@@ -3825,9 +3825,17 @@ function pn_purchase() {
             $a = json_decode( $jsonBody, true );
             $cents = $a['data']['object']['amount'];
 
-            global $creditsPerPenny;
-
-            $credits = $cents * $creditsPerPenny;
+            global $creditPurchasePennyMap;
+            
+            if( array_key_exists( $cents, $creditPurchasePennyMap ) ) {
+                $credits = $creditPurchasePennyMap[ $cents ];
+                }
+            else {
+                pn_log( "Stripe puchase specifies $cents pennies, not found ".
+                        "in price map" );
+                $logAll = true;
+                }
+            
             $email = $a['data']['object']['billing_details']['email'];
 
             if( $credits == 0 ) {
@@ -3891,17 +3899,7 @@ function pn_purchase() {
 
     if( $email != "" && $credits != 0 ) {
                     
-        $bonus = 0;
-        
-        if( $credits > 0 ) {
-            global $creditPurchaseBonusMap;
-            
-            if( array_key_exists( $credits, $creditPurchaseBonusMap ) ) {
-                $bonus = $creditPurchaseBonusMap[ $credits ];
-                }
-            }
-        
-        $totalNewCredits = $credits + $bonus;
+        $totalNewCredits = $credits;
         
         if( $totalNewCredits > 0 ) {
             global $tableNamePrefix;

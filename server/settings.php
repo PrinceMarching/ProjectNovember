@@ -131,23 +131,21 @@ $stripeWebhookSecret = "whsec_DOAaOfi6oovfI9anrb6pSy3ofEF3uIWJ";
 $fastSpringPrivateKey = "secret";
 
 
-$creditsPerPenny = 3;
 
-
-// also use this for list of credits that can be purchased after initial
-// purchase
-$creditPurchaseBonusMap = array( 600 => 0,
-                                 1200 => 100,
-                                 2400 => 300,
-                                 4800 => 700 );
+// maps stripe USD penny prices to numbers of credits
+$creditPurchasePennyMap = array( 500 => 1000,
+                                 200 => 400,
+                                 400 => 900,
+                                 800 => 2000,
+                                 1600 => 5000 );
 
 
 
-$fastSpringTagCreditMap = array( "pn1500" => 1500,
-                                 "pn600" => 600,
-                                 "pn1200" => 1200,
-                                 "pn2400" => 2400,
-                                 "pn4800" => 4800 );
+$fastSpringTagCreditMap = array( "pn1100" => 1000,
+                                 "pn400" => 400,
+                                 "pn900" => 900,
+                                 "pn2000" => 2000,
+                                 "pn5000" => 5000 );
 
 
 
