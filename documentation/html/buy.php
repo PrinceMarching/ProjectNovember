@@ -68,7 +68,7 @@
 
 <table border=0 width=500 cellspacing=0 cellpadding=0><tr><td>
 <font size=4>After your payment is completed, your login details will be sent
-to your email address immediately.  Your purchase includes 1500
+to your email address immediately.  Your purchase includes 1000
 complementary compute credits, which can be used to spin up
 and enjoy the friendly personality matrices of your choice.</font>
 </td>
