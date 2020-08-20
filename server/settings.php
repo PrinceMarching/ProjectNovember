@@ -141,7 +141,7 @@ $creditPurchasePennyMap = array( 500 => 1000,
 
 
 
-$fastSpringTagCreditMap = array( "pn1100" => 1000,
+$fastSpringTagCreditMap = array( "pn1000" => 1000,
                                  "pn400" => 400,
                                  "pn900" => 900,
                                  "pn2000" => 2000,
