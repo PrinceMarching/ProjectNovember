@@ -1389,8 +1389,9 @@ function pn_addCredits() {
 
 
 function pn_getEmailParam() {
-    $email = pn_requestFilter( "email",
-                               "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+    $email = strtolower(
+        pn_requestFilter( "email",
+                          "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" ) );
     return $email;
     }
 
@@ -3870,9 +3871,7 @@ function pn_purchase() {
         else {
             $print_response = "(Check email for details)";
             
-            $email = pn_requestFilter( "email",
-                                       "/[A-Z0-9._%+-]+@[A-Z0-9.-]+/i",
-                                       "" );
+            $email = pn_getEmailParam();
             
             $tags = pn_requestFilter( "tags", "/[A-Z0-9_,-]+/i", "" );
             
