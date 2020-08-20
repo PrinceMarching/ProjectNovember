@@ -30,6 +30,13 @@ function stripeCheckout( email, num_credits, priceID ) {
 		backURL = 'https://projectdecember.net/buy.php';
 	}
 
+	if( email === "" ) {
+		// don't pass blank email through, stripe rejects it
+		// set param to undefined instead
+		email = undefined;
+	}
+
+	
 	stripe
 		.redirectToCheckout({
 			lineItems: [
