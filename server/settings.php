@@ -13,6 +13,8 @@ $fullServerURL = "http://localhost/jcr13/novemberServer/server.php";
 
 $terminalURL = "http://localhost/jcr13/ProjectNovember/index.html";
 
+$creditsURL = "https://localhost/jcr13/ProjectNovember/credits.php";
+
 
 
 // End Basic settings
