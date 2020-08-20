@@ -65,6 +65,11 @@ else if( $numCredits == 5000 ) {
     $priceID = "price_1HIHLDLc2fQJ3IRBhbeB2F7y";
     $fsPage = "pn5000";
     }
+else {
+    // don't allow any other $numCredits through, since they aren't supported
+    // map all other values to 400
+    $numCredits = 400;
+    }
 
 $stripeParams = " '$email', $numCredits, '$priceID' ";
     ?>
