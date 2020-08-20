@@ -125,7 +125,7 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
                         "main", "owned", "error", "matrix_dead",
-                        "wipe_result", "builtIn", "spinUp" );
+                        "wipe_result", "builtIn", "spinUp", "buy_credits" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
@@ -1561,7 +1561,8 @@ function pn_showPages() {
     // trigger dest names shouldn't be listed
     foreach( $missingLinkedPages as $name ) {
         if( preg_match( "/talk_AI/i", $name ) ||
-            preg_match( "/purchase_AI/i", $name ) ) {
+            preg_match( "/purchase_AI/i", $name ) ||
+            preg_match( "/purchase_credits/i", $name ) ) {
             pn_arrayRemoveByValue( $missingLinkedPages, $name );
             }        
         }
@@ -1647,7 +1648,8 @@ function pn_editPage() {
         foreach( $destParts as $n ) {
             if( $n != "" &&
                 ! preg_match( "/talk_AI/i", $n ) &&
-                ! preg_match( "/purchase_AI/i", $n ) ) {
+                ! preg_match( "/purchase_AI/i", $n ) &&
+                ! preg_match( "/purchase_credits/i", $n ) ) {
                 
                 if( pn_pageExists( $n ) ) {
                     
@@ -2086,6 +2088,11 @@ function pn_clientPage() {
                 // show purchase confirmation page
                 pn_showPurchaseConfirmation( $email, $pickedName );
                 }
+            else if( preg_match( "/purchase_credits/", $pickedName ) ) {
+                // special case
+                // pop up a window to let them buy credits
+                pn_showBuyCredits( $email, $pickedName );
+                }
             else if( pn_pageExists( $pickedName ) ) {
                 pn_standardResponseForPage( $email, $pickedName );
                 }
@@ -2232,12 +2239,14 @@ function pn_getPromptColorForPage( $inPageName ) {
 
 
 
-function pn_standardHeaderForPage( $inPageName ) {
+function pn_standardHeaderForPage( $inPageName, $inOpenUrl = "" ) {
 
     // next action
     echo "page\n";
     // carried param
     echo "$inPageName\n";
+    // no URL:
+    echo "open_url=$inOpenUrl\n";
     // no typed display prefix
     echo "{}\n";
 
@@ -2288,6 +2297,8 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
     echo "purchase_ai\n";
     // carried param
     echo "$aiPageName\n";
+    // no URL:
+    echo "open_url=\n";
     // no typed display prefix
     echo "{}\n";
 
@@ -2364,6 +2375,30 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
                                   $prompt_color );
     echo $text;
     }
+
+
+
+
+function pn_showBuyCredits( $email, $purchasePageName ) {
+
+    $prefix = "purchase_credits_";
+
+    $numCredits = substr( $purchasePageName, strlen( $prefix ) );
+
+    global $creditsURL;
+
+    $encEmail = urlencode( $email );
+    
+    $popURL = "$creditsURL?email=$encEmail&num_credits=$numCredits";
+    
+    
+    pn_standardHeaderForPage( "buy_credits", $popURL );
+    pn_echoPageText( $email, "buy_credits" );
+    }
+
+
+
+
 
 
 $lastErrorMessage = "";
@@ -2506,6 +2541,8 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     echo "talk_ai\n";
     // carried param
     echo "$aiOwnedID\n";
+    // no URL:
+    echo "open_url=\n";
     // Prefix what human types
     echo "{" . $humanTypedPrefix . "}\n";
 
@@ -2892,6 +2929,8 @@ function pn_talkAI() {
     echo "talk_ai\n";
     // carried param
     echo "$aiOwnedID\n";
+    // no URL:
+    echo "open_url=\n";
     // Prefix what human types
     echo "{" . $humanTypedPrefix . "}\n";
     

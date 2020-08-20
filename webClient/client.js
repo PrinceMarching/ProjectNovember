@@ -1070,13 +1070,22 @@ function parseStandardResponse( inResponse ) {
 	
 	nextServerAction = parts[0];
 	nextCarriedParam = parts[1];
+	openURLLine = parts[2];
+	
+	popURL = openURLLine.replace( "open_url=", "" );
+
+	if( popURL != "" ) {
+		openURLNewTab( popURL, 0 );
+	}
+
 	// remove curly braces
-	nextTypedDisplayPrefix = parts[2].slice( 1, -1 );
-	nextTypedDisplayColor = parts[3];
-	let clearFlag = parts[4];
+	nextTypedDisplayPrefix = parts[3].slice( 1, -1 );
+	nextTypedDisplayColor = parts[4];
+	let clearFlag = parts[5];
 	if( clearFlag == 1 ) {
 		clearLineBuffers();
 		}
+	parts.shift();
 	parts.shift();
 	parts.shift();
 	parts.shift();
