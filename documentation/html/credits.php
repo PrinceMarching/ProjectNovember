@@ -45,9 +45,28 @@ function pnc_filter( $inValue, $inRegex, $inDefault = "" ) {
     return $matches[0];
     }
 
-$numCredits = pnc_requestFilter( "num_credits", "/[0-9]+/i", "600" );
+$numCredits = pnc_requestFilter( "num_credits", "/[0-9]+/i", "400" );
 $email = pnc_requestFilter( "email",
                             "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
+
+// default, 400 credits
+$priceID = "price_1HFpXiLc2fQJ3IRBSuwRoTGA";
+$fsPage = "pn400";
+
+if( $numCredits == 900 ) {
+    $priceID = "price_1HHaMALc2fQJ3IRBBet527ew";
+    $fsPage = "pn900";
+    }
+else if( $numCredits == 2000 ) {
+    $priceID = "price_1HHaNSLc2fQJ3IRBwYEUOf4F";
+    $fsPage = "pn2000";
+    }
+else if( $numCredits == 5000 ) {
+    $priceID = "price_1HIHLDLc2fQJ3IRBhbeB2F7y";
+    $fsPage = "pn5000";
+    }
+
+$stripeParams = " '$email', $numCredits, '$priceID' ";
     ?>
 
 
@@ -67,33 +86,33 @@ $email = pnc_requestFilter( "email",
 
 <td>
 <a id="myLink" title="Buy with PayPal"
- href="https://sites.fastspring.com/jasonrohrer/instant/projectdecember?referrer=<?php echo $referrer;?>"><img border=0 width=250 height=52 src="payButtons/payPal.png"></a>
+ href="https://sites.fastspring.com/jasonrohrer/instant/<?php echo $fsPage;?>?referrer=<?php echo $referrer;?>"><img border=0 width=250 height=52 src="payButtons/payPal.png"></a>
 </td>
 <td>
 <a id="myLink" title="Buy with Credit Card"
- href="#" onclick="stripeCheckout();return false;"><img border=0 width=250 height=52 src="payButtons/creditCard.png"></a>
+ href="#" onclick="stripeCheckout(<?php echo $stripeParams;?>);return false;"><img border=0 width=250 height=52 src="payButtons/creditCard.png"></a>
 </td>
 <?tr>
 
 <tr>
 <td>
 <a id="myLink" title="Buy with Apple Pay"
- href="#" onclick="stripeCheckout();return false;"><img border=0 width=250 height=52 src="payButtons/applePay.png"></a>
+ href="#" onclick="stripeCheckout(<?php echo $stripeParams;?>);return false;"><img border=0 width=250 height=52 src="payButtons/applePay.png"></a>
 </td>
 <td>
 <a id="myLink" title="Buy with Google Pay"
- href="#" onclick="stripeCheckout();return false;"><img border=0 width=250 height=52 src="payButtons/googlePay.png"></a>
+ href="#" onclick="stripeCheckout(<?php echo $stripeParams;?>);return false;"><img border=0 width=250 height=52 src="payButtons/googlePay.png"></a>
 </td>
 </tr>
 
 <tr>
 <td>
 <a id="myLink" title="Buy with Amazon Pay"
- href="https://sites.fastspring.com/jasonrohrer/instant/projectdecember?referrer=<?php echo $referrer;?>"><img border=0 width=250 height=52 src="payButtons/amazonPay.png"></a>
+ href="https://sites.fastspring.com/jasonrohrer/instant/<?php echo $fsPage;?>?referrer=<?php echo $referrer;?>"><img border=0 width=250 height=52 src="payButtons/amazonPay.png"></a>
 </td>
 <td>
 <a id="myLink" title="Buy with other methods"
- href="#" onclick="stripeCheckout();return false;"><img border=0 width=250 height=52 src="payButtons/otherPay.png"></a>
+ href="#" onclick="stripeCheckout(<?php echo $stripeParams;?>);return false;"><img border=0 width=250 height=52 src="payButtons/otherPay.png"></a>
 </td>
 </tr>
 
