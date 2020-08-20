@@ -50,7 +50,7 @@ $email = pnc_requestFilter( "email",
                             "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" );
 
 // default, 400 credits
-$priceID = "price_1HFpXiLc2fQJ3IRBSuwRoTGA";
+$priceID = "price_1HHaAVLc2fQJ3IRB47qGXCqG";
 $fsPage = "pn400";
 
 if( $numCredits == 900 ) {
