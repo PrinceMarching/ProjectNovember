@@ -695,6 +695,9 @@ function capScrollUp() {
 		scrollUp = 0;
 	}
 	else {
+		// allow one blank line at very top.
+		visibleLines = canvas.height / fontSpacingV - 2;
+
 		commandLines = splitCommandLines( canvas );
 		
 		numCommandLines = commandLines.length;
@@ -880,9 +883,15 @@ function doKeyDown( e ) {
 
 
 
-function doWheel( e ) {	
-	scrollUp += e.deltaY;
+function doWheel( e ) {
+	if( e.deltaY < 0 ) {
+		scrollUp ++;
+	}
+	else if( e.deltaY > 0 ) {
+		scrollUp --;
+	}
 	capScrollUp();
+	redrawNow();
 }
 
 
