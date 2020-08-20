@@ -125,7 +125,8 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
                         "main", "owned", "error", "matrix_dead",
-                        "wipe_result", "builtIn", "spinUp", "buy_credits" );
+                        "wipe_result", "builtIn", "spinUp", "buy_credits",
+                        "insufficient_credits" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
@@ -2293,25 +2294,6 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
     $aiPageName = substr( $purchasePageName, strlen( $prefix ) );
     
     
-    // next action
-    echo "purchase_ai\n";
-    // carried param
-    echo "$aiPageName\n";
-    // no URL:
-    echo "open_url=\n";
-    // no typed display prefix
-    echo "{}\n";
-
-
-    global $defaultPagePromptColor;
-    
-    $prompt_color = $defaultPagePromptColor;
-    
-    // use prompt color for what user types being added to bottom
-    echo "$prompt_color\n";
-    
-    // don't clear
-    echo "0\n";
 
 
     global $tableNamePrefix;
@@ -2322,15 +2304,37 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
+
+    $page_text = "";
     
     if( $numRows == 1 ) {
         $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
         
         if( $ai_cost > pn_getUserCredits( $email ) ) {
-            $pageText = "\n\n       INSUFFICIENT CREDITS!\n\n";
-            $pageText = $pageText . "Press ENTER to go back.";
+            pn_standardResponseForPage( $email, "insufficient_credits" );
+            return;
             }
         else {
+
+            // next action
+            echo "purchase_ai\n";
+            // carried param
+            echo "$aiPageName\n";
+            // no URL:
+            echo "open_url=\n";
+            // no typed display prefix
+            echo "{}\n";
+            
+            
+            global $defaultPagePromptColor;
+            
+            $prompt_color = $defaultPagePromptColor;
+            
+            // use prompt color for what user types being added to bottom
+            echo "$prompt_color\n";
+            
+            // don't clear
+            echo "0\n";
             
             $pageText = "\n\n       CONFIRM OPERATION\n\n";
 
@@ -2361,8 +2365,8 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
             }
         }
     else {
-        $pageText = "\n\n       MATRIX NOT FOUND!\n\n";
-        $pageText = $pageText . "Press ENTER to go back.";
+        pn_showErrorPage( $email, "Matrix not found." );
+        return;
         }
     
     
