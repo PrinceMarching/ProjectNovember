@@ -1457,7 +1457,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
     <INPUT TYPE="text" MAXLENGTH=10 SIZE=10 NAME="prompt_color"
         value='<?php echo $prompt_color;?>'><br>
          Dest pages:
-    <INPUT TYPE="text" MAXLENGTH=80 SIZE=40 NAME="dest_names"
+    <INPUT TYPE="text" MAXLENGTH=800 SIZE=40 NAME="dest_names"
         value='<?php echo $dest_names;?>'><br>
 <table border=0 cellpadding=10><tr><td bgcolor="#eeeeee">
         AI Name:
