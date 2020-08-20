@@ -1977,7 +1977,6 @@ function pn_lastGoodHashWasLongTimeAgo( $inEmail ) {
         }
     else {
         $minutes = pn_mysqli_result( $result, 0, 0 );
-        pn_log( "$query     Minutes = $minutes" );
         if( $minutes < 30 ) {
             return false;
             }
