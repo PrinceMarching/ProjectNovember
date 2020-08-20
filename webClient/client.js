@@ -341,6 +341,7 @@ function timedRedraw( inMSFromNow ) {
 redrawNow();
 window.addEventListener( "keypress", doKeyPress, false );
 window.addEventListener( "keydown", doKeyDown, false );
+window.addEventListener( "wheel", doWheel, false );
 
 
 
@@ -687,6 +688,28 @@ function exportAll() {
 
 
 
+
+function capScrollUp() {
+	
+	if( scrollUp < 0 ) {
+		scrollUp = 0;
+	}
+	else {
+		commandLines = splitCommandLines( canvas );
+		
+		numCommandLines = commandLines.length;
+	
+		if( scrollUp > lineBuffer.length + numCommandLines - visibleLines ) {
+			scrollUp = lineBuffer.length + numCommandLines - visibleLines;
+			if( scrollUp < 0 ) {
+				scrollUp = 0;
+			}
+		}
+	}
+}
+
+
+
 function doKeyDown( e ) {
 	if( e.keyCode == 8 ) {
 		scrollUp = 0;
@@ -749,17 +772,7 @@ function doKeyDown( e ) {
 			scrollUp += visibleLines;
 			}
 		
-		
-		commandLines = splitCommandLines( canvas );
-
-		numCommandLines = commandLines.length;
-
-		if( scrollUp > lineBuffer.length + numCommandLines - visibleLines ) {
-			scrollUp = lineBuffer.length + numCommandLines - visibleLines;
-			if( scrollUp < 0 ) {
-				scrollUp = 0;
-			}
-		}
+		capScrollUp();
 	}
 	else if( e.keyCode == 40 || e.keyCode == 34 ) {
 		
@@ -772,10 +785,8 @@ function doKeyDown( e ) {
 			visibleLines = canvas.height / fontSpacingV - 2;
 			scrollUp -= visibleLines;
 		}
-
-		if( scrollUp < 0 ) {
-			scrollUp = 0;
-		}
+		
+		capScrollUp();
 	}
 	else if( e.keyCode == 37 ) {
 		// left arrow
@@ -867,6 +878,12 @@ function doKeyDown( e ) {
 	redrawNow();
 }
 
+
+
+function doWheel( e ) {	
+	scrollUp += e.deltaY;
+	capScrollUp();
+}
 
 
 
