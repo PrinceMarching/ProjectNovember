@@ -81,7 +81,7 @@ $stripeParams = " '$email', $numCredits, '$priceID' ";
 <br>
 <noscript>Please enable JavaScript<br><br></noscript>
 
-<font size=5>Adding <?php echo $numCredits;?> PROJECT DECEMBER credits for <?php echo $email;?>:</font>
+<font size=5>Adding <b><?php echo $numCredits;?></b> Compute Credits to the<br>PROJECT DECEMBER account for <b><?php echo $email;?></b>:</font>
 <br>
 <br>
 
