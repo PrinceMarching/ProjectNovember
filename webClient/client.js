@@ -41,6 +41,8 @@ function reportWindowSize() {
 	
 	fontSpacingH = baseFontSpacingH * drawScale;
 	fontSpacingV = baseFontSpacingV * drawScale;
+
+	resetCursorFlash();
 	redrawNow();
 }
 
@@ -157,6 +159,13 @@ function drawCursor( inX, inY, inCTX ) {
 			lastWasDraw = true;
 			timedRedraw( flashMS );
 		}
+		else {
+			// make sure we keep cursor flashing, even if timing
+			// interleaves in a bad way
+			if( timedRedrawPendingCount == 0 ) {
+				timedRedraw( flashMS );
+			}
+		}
 		drawString( "|", inX - 4 * drawScale, inY, inCTX, promptColor );
 		drawString( "|", inX - 2 * drawScale, inY, inCTX, promptColor );
 		drawString( "|", inX + 1 * drawScale, inY, inCTX, promptColor );
@@ -179,6 +188,13 @@ function drawCursor( inX, inY, inCTX ) {
 			// schedule redraw to keep cursor flashing
 			lastWasDraw = false;
 			timedRedraw( flashMS );
+		}
+		else {
+			// make sure we keep cursor flashing, even if timing
+			// interleaves in a bad way
+			if( timedRedrawPendingCount == 0 ) {
+				timedRedraw( flashMS );
+			}
 		}
 	}
 }
@@ -329,10 +345,22 @@ function redrawNow() {
 }
 
 
+var timedRedrawPendingCount = 0;
+
+
+function redrawTimed() {
+	timedRedrawPendingCount --;
+	if( timedRedrawPendingCount < 0 ) {
+		timedRedrawPendingCount = 0;
+	}
+	redrawNow();
+}
+
 
 
 function timedRedraw( inMSFromNow ) {
-	setTimeout( redrawNow, inMSFromNow );
+	timedRedrawPendingCount ++;
+	setTimeout( redrawTimed, inMSFromNow );
 }
 
 
@@ -473,7 +501,7 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 	  ( getMSTime() - charPrintingStartTime ) > linesToAddCharMS[0] ) {
 		charPrintingStartTime = getMSTime();
 
-		timedRedraw( charPrintingStepMS );
+		timedRedraw( linesToAddCharMS[0] );
 
 		if( linesToAddProgress[0] == 0 ) {
 			lineBuffer.push( linesToAdd[0].substring( 0, 1 ) );
@@ -501,6 +529,19 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 				linesToAddCharMS.shift();
 				linesToAddCorruptionFlags.shift();
 			}
+		}
+	}
+	else if( linesToAdd.length > 0 ) {
+		// we got a redraw call, but the timing wasn't right for us
+		// to add another character.  Perhaps we are slightly off time
+
+		// make sure we at least have another redraw scheduled in future
+		if( timedRedrawPendingCount == 0 ) {
+			// nothing scheduled
+			// scedule one now, pushed out based on how much time we have
+			// left before the next char should draw
+			timedRedraw( linesToAddCharMS[0] -
+						 ( getMSTime() - charPrintingStartTime ) );
 		}
 	}
 	
