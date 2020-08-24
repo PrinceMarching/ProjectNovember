@@ -3,11 +3,6 @@
 <center>
 
 
-<a href="samples.php">samples</a> --|-- <a href="http://projectdecember.net/terminal/">terminal</a> --|-- made by <a href="http://hcsoftware.sourceforge.net/jason-rohrer/">Jason Rohrer</a>
-
-<br>
-<br>
-<br>
 
 
 <img src="logo.jpg" width=822 height=1060 border=0>
