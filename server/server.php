@@ -767,7 +767,7 @@ function pn_updatePage( $inCreateNewOnly ) {
     $slashedBody = pn_mysqlEscape( $body );
 
 
-    $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,_]+/i", "" );
+    $dest_names = pn_requestFilter( "dest_names", "/[A-Z0-9,_#]+/i", "" );
 
     $display_color = strtoupper(
         pn_requestFilter( "display_color", "/#[A-F0-9]+/i", "#FFFFFF" ) );
@@ -2042,7 +2042,8 @@ function pn_clientPage() {
     $destList = preg_split( "/,/", $dest_names );
 
     $newDestList = array();
-
+    $nextIndex = 1;
+    
     foreach( $destList as $n ) {
         if( $n == "talk_AI" ) {
             $query = "SELECT id from $tableNamePrefix"."owned_ai ".
@@ -2057,12 +2058,22 @@ function pn_clientPage() {
                 for( $i=0; $i<$numRows; $i++ ) {
                     $id = pn_mysqli_result( $result, $i, "id" );
 
-                    $newDestList[] = "talk_AI_$id";
+                    $newDestList[ $nextIndex ] = "talk_AI_$id";
+                    $nextIndex ++;
                     }
                 }
             }
+        else if( preg_match( "/^[0-9]+#/", $n ) ) {
+            // a hidden destination page with an off-list page number
+            // at the front
+            $parts = preg_split( "/#/", $n );
+            if( count( $parts ) == 2 ) {
+                $newDestList[ $parts[0] ] = $parts[1];
+                }
+            }
         else {
-            $newDestList[] = $n;
+            $newDestList[ $nextIndex ] = $n;
+            $nextIndex ++;
             }
         }
 
@@ -2073,9 +2084,10 @@ function pn_clientPage() {
     if( count( $destList ) > 1 ) {
     
         if( $command != "" &&
-            $command >= 1 && count( $destList ) > $command - 1 ) {
+            count( $destList ) > 1 &&
+            $command >= 1 && array_key_exists( $command, $destList ) ) {
             
-            $pickedName = $destList[ $command - 1 ];            
+            $pickedName = $destList[ $command ];            
 
             if( preg_match( "/talk_AI_/", $pickedName ) ) {
                 // special case
@@ -2106,7 +2118,7 @@ function pn_clientPage() {
         }
     else if( count( $destList ) == 1 ) {
         // only one option (probably on ENTER) so go there always
-        pn_standardResponseForPage( $email, $destList[0] );
+        pn_standardResponseForPage( $email, $destList[1] );
         }
     else {
         pn_log( "Page $pageName has no destinations specified, ".
