@@ -1,6 +1,4 @@
-<html>
-
-<body bgcolor="#000000" text="#FFFFFF" link="#5ccfe3" alink="#000088" vlink="#5ccfe3">
+<?php include_once( "head.php" );?>
 
 <center>
 
