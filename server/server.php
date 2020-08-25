@@ -1767,6 +1767,8 @@ function pn_exportTable( $inTableName ) {
             }
         }
     header('Content-Type: text/plain');
+
+    $out = "AES128 " . pn_encryptBuffer( $out );
     echo $out;
     }
 
@@ -1840,7 +1842,14 @@ function pn_importTable( $inTableName ) {
     // no filtering
     $text = $_REQUEST[ "text" ];
 
+    if( preg_match( "/^AES128 /", $text ) ) {
 
+        $text = substr( $text, strlen( "AES128 " ) );
+
+        $text = pn_decryptBuffer( $text );
+        }
+    
+    
     // remove all whitespace (various line ends)
     $text = preg_replace('/\s+/', '', $text );
 
