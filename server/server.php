@@ -532,7 +532,8 @@ function pn_setupDatabase() {
             // corruption
             "ai_longevity int NOT NULL,".
             // name of protocol used to get AI response
-            "ai_protocol TEXT NOT NULL )";
+            "ai_protocol TEXT NOT NULL,".
+            "ai_sound_url TEXT NOT NULL )";
         
         $result = pn_queryDatabase( $query );
 
@@ -555,7 +556,8 @@ function pn_setupDatabase() {
             "index( page_name ),".
             "ai_age INT UNSIGNED NOT NULL,".
             "conversation_buffer TEXT NOT NULL,".
-            "conversation_log TEXT NOT NULL );";
+            "conversation_log TEXT NOT NULL, ".
+            "first_response_sent TINYINT NOT NULL );";
         
         $result = pn_queryDatabase( $query );
 
@@ -781,6 +783,8 @@ function pn_updatePage( $inCreateNewOnly ) {
         pn_requestFilter( "ai_response_label", "/[A-Z0-9\- :]+/i", "" );
     $ai_longevity = pn_requestFilter( "ai_longevity", "/[0-9]+/i", "0" );
     $ai_protocol = pn_requestFilter( "ai_protocol", "/[A-Z0-9\-_]+/i", "" );
+    $ai_sound_url = pn_requestFilter( "ai_sound_url",
+                                      "/http[A-Z0-9:.\/\-_]+/i", "" );
 
 
     if( ! $inCreateNewOnly ) {
@@ -794,6 +798,7 @@ function pn_updatePage( $inCreateNewOnly ) {
             "ai_response_label = '$ai_response_label',".
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
+            "ai_sound_url = '$ai_sound_url',".
             "dest_names = '$dest_names' WHERE name = '$name';";
         
         
@@ -812,7 +817,8 @@ function pn_updatePage( $inCreateNewOnly ) {
             "ai_cost = '$ai_cost',".
             "ai_response_label = '$ai_response_label',".
             "ai_longevity = '$ai_longevity',".
-            "ai_protocol = '$ai_protocol';";
+            "ai_protocol = '$ai_protocol',".
+            "ai_sound_url = '$ai_sound_url';";
 
         
         global $pn_mysqlLink;
@@ -1417,6 +1423,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
     $ai_response_label = "";
     $ai_longevity = 0;
     $ai_protocol = "";
+    $ai_sound_url = "";
     
     if( $name != "" ) {
         // existing page
@@ -1424,7 +1431,8 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
         global $tableNamePrefix;
         
         $query = "SELECT ai_name, ai_cost, ai_response_label,".
-            "ai_longevity, ai_protocol FROM $tableNamePrefix"."pages ".
+            "ai_longevity, ai_protocol, ai_sound_url ".
+            "FROM $tableNamePrefix"."pages ".
             "WHERE name='$name';";
         
         $result = pn_queryDatabase( $query );
@@ -1439,6 +1447,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
                 pn_mysqli_result( $result, 0, "ai_response_label" );
             $ai_longevity = pn_mysqli_result( $result, 0, "ai_longevity" );
             $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
+            $ai_sound_url = pn_mysqli_result( $result, 0, "ai_sound_url" );
             }
         }
     
@@ -1476,6 +1485,9 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
         AI protocol:
     <INPUT TYPE="text" MAXLENGTH=30 SIZE=10 NAME="ai_protocol"
         value='<?php echo $ai_protocol;?>'><br>
+        AI sound url:
+    <INPUT TYPE="text" MAXLENGTH=500 SIZE=40 NAME="ai_sound_url"
+        value='<?php echo $ai_sound_url;?>'><br>
 </td></tr></table>               
     <INPUT TYPE="Submit" VALUE="<?php echo $buttonName;?>">
     </FORM>
@@ -2484,7 +2496,7 @@ function pn_purchaseAI() {
                 "page_name = '$aiPageName',".
                 "ai_age = '0',".
                 "conversation_buffer = '',".
-                "conversation_log = '';";
+                "conversation_log = '', first_response_sent = 0;";
             
             pn_queryDatabase( $query );
 
@@ -2560,6 +2572,10 @@ function pn_initiateTalkAI( $email, $pickedName ) {
 
     $display_color = pn_mysqli_result( $result, 0, "display_color" );
 
+    pn_queryDatabase( "UPDATE $tableNamePrefix"."owned_ai ".
+                      "SET first_response_sent = 0 ".
+                      "WHERE id = '$aiOwnedID';" );
+    
     
     global $humanTypedPrefix;
     
@@ -2663,6 +2679,8 @@ function pn_talkAI() {
     
     $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
     $ai_age = pn_mysqli_result( $result, 0, "ai_age" );
+    $first_response_sent =
+        pn_mysqli_result( $result, 0, "first_response_sent" );
     
     
 
@@ -2729,6 +2747,7 @@ function pn_talkAI() {
 
     $ai_longevity = pn_mysqli_result( $result, 0, "ai_longevity" );
     $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
+    $ai_sound_url = pn_mysqli_result( $result, 0, "ai_sound_url" );
     $prompt_color = pn_mysqli_result( $result, 0, "prompt_color" );
     $display_color = pn_mysqli_result( $result, 0, "display_color" );
 
@@ -2955,14 +2974,26 @@ function pn_talkAI() {
     
     pn_addToConversationBuffer( $aiOwnedID, $aiResponse );
 
+    pn_queryDatabase( "UPDATE $tableNamePrefix"."owned_ai ".
+                      "SET first_response_sent = 1 ".
+                      "WHERE id = '$aiOwnedID';" );
+
+    
     // next action
     echo "talk_ai\n";
     // carried param
     echo "$aiOwnedID\n";
     // no URL:
     echo "open_url=\n";
-    // no sound:
-    echo "play_sound_url=\n";
+
+    if( $first_response_sent ) {
+        // no sound:
+        echo "play_sound_url=\n";
+        }
+    else {
+        echo "play_sound_url=$ai_sound_url\n";
+        }
+    
     // Prefix what human types
     echo "{" . $humanTypedPrefix . "}\n";
     

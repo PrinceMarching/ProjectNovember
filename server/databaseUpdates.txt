@@ -1,0 +1,5 @@
+
+
+ALTER TABLE novemberServer_pages ADD COLUMN ai_sound_url TEXT NOT NULL AFTER ai_protocol;
+
+ALTER TABLE novemberServer_owned_ai ADD COLUMN first_response_sent TINYINT NOT NULL AFTER conversation_log;
