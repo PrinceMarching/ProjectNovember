@@ -3,3 +3,18 @@
 ALTER TABLE novemberServer_pages ADD COLUMN ai_sound_url TEXT NOT NULL AFTER ai_protocol;
 
 ALTER TABLE novemberServer_owned_ai ADD COLUMN first_response_sent TINYINT NOT NULL AFTER conversation_log;
+
+
+
+
+
+
+ALTER TABLE novemberServer_users ADD COLUMN next_custom_page_id INT NOT NULL DEFAULT 1 AFTER conversations_logged;
+
+
+ALTER TABLE novemberServer_pages ADD COLUMN ai_creator_id INT NOT NULL DEFAULT 0 AFTER ai_sound_url;
+
+
+ALTER TABLE novemberServer_pages ADD INDEX( ai_creator_id );
+
+

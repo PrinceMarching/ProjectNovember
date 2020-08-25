@@ -206,6 +206,9 @@ else if( $action == "delete_page" ) {
 else if( $action == "export_pages" ) {
     pn_exportPages();
     }
+else if( $action == "export_user_pages" ) {
+    pn_exportUserPages();
+    }
 else if( $action == "export_users" ) {
     pn_exportUsers();
     }
@@ -498,7 +501,8 @@ function pn_setupDatabase() {
             // stop showing the boilerplate help at beginning of chat
             // after they learn it
             "num_times_exit_used INT NOT NULL,".
-            "conversations_logged TINYINT NOT NULL );";
+            "conversations_logged TINYINT NOT NULL,".
+            "next_custom_page_id INT NOT NULL );";
 
         $result = pn_queryDatabase( $query );
 
@@ -533,7 +537,10 @@ function pn_setupDatabase() {
             "ai_longevity int NOT NULL,".
             // name of protocol used to get AI response
             "ai_protocol TEXT NOT NULL,".
-            "ai_sound_url TEXT NOT NULL )";
+            "ai_sound_url TEXT NOT NULL, ".
+            // user id of ai author
+            // 0 for pages created by admin
+            "ai_creator_id INT NOT NULL )";
         
         $result = pn_queryDatabase( $query );
 
@@ -723,7 +730,8 @@ function pn_addUser() {
         "fake_last_name = '$fake_last_name', credits = '$credits', ".
         "current_page = '', client_sequence_number = '$seq', ".
         "last_good_hash_time = CURRENT_TIMESTAMP, ".
-        "num_times_exit_used = 0, conversations_logged = 0 ;";
+        "num_times_exit_used = 0, conversations_logged = 0, ".
+        "next_custom_page_id = 1;";
 
 
     global $pn_mysqlLink;
@@ -818,7 +826,8 @@ function pn_updatePage( $inCreateNewOnly ) {
             "ai_response_label = '$ai_response_label',".
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
-            "ai_sound_url = '$ai_sound_url';";
+            "ai_sound_url = '$ai_sound_url',".
+            "ai_creator_id = 0;";
 
         
         global $pn_mysqlLink;
@@ -953,7 +962,8 @@ function pn_showLinkHeader() {
     echo "<table width='100%' border=0><tr>".
         "<td>[<a href=\"server.php?action=show_data" .
         "\">Main</a>] [<a href=\"server.php?action=show_pages" .
-        "\">Pages</a>]</td>".
+        "\">Pages</a>] [<a href=\"server.php?action=show_pages&user=1" .
+        "\">User Pages</a>]</td>".
         "<td align=right>[<a href=\"server.php?action=logout" .
         "\">Logout</a>]</td>".
         "</tr></table><br><br><br>";
@@ -1514,26 +1524,40 @@ function pn_showPages() {
     
     pn_showLinkHeader();
 
+    $user = pn_requestFilter( "user", "/[01]+/i", 0 );
+
 
     // first, form for adding a new page
 
-    echo "Create new Page:<br>";
-
-    global $defaultPageTextColor, $defaultPagePromptColor;    
     
-    pn_showPageForm( "add_page", "", false, "",
-                     $defaultPageTextColor, $defaultPagePromptColor,
-                     "", "Create" );
 
+    if( $user == 0 ) {
+        echo "Create new Page:<br>";
+
+        global $defaultPageTextColor, $defaultPagePromptColor;    
+
+        pn_showPageForm( "add_page", "", false, "",
+                         $defaultPageTextColor, $defaultPagePromptColor,
+                         "", "Create" );
+        echo "<hr><br>";
+        }
+    
          
     
     global $tableNamePrefix;
 
-    echo "<hr><br>Exising pages:<br><br>";
+    echo "Exising pages:<br><br>";
+
+    $whereClause = "WHERE ai_creator_id = 0";
+
+    if( $user == 1 ) {
+        $whereClause = "WHERE ai_creator_id > 0";
+        }
     
     
     $query = "SELECT name, dest_names ".
-            "FROM $tableNamePrefix"."pages;";
+        "FROM $tableNamePrefix"."pages ".
+        "$whereClause;";
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
@@ -1581,7 +1605,7 @@ function pn_showPages() {
         }
 
     
-    if( count( $missingPages ) > 0 ) {
+    if( $user == 0 && count( $missingPages ) > 0 ) {
         echo "<hr><br>Missing required pages:<br><br>";
 
         foreach( $missingPages as $name ) {    
@@ -1590,7 +1614,7 @@ function pn_showPages() {
             }
         }
 
-    if( count( $missingLinkedPages ) > 0 ) {
+    if( $user == 0 && count( $missingLinkedPages ) > 0 ) {
         echo "<hr><br>Missing linked pages:<br><br>";
 
         foreach( $missingLinkedPages as $name ) {    
@@ -1598,7 +1622,15 @@ function pn_showPages() {
             "<a href='server.php?action=new_page&name=$name'>$name</a><br><br>";
             }
         }
-    echo "<hr><a href='server.php?action=export_pages'>Export Pages</a>";
+
+    if( $user == 0 ) {
+        echo "<hr><a href='server.php?action=export_pages'>Export Pages</a>";
+        }
+    else {
+        echo "<hr><a href='server.php?action=export_user_pages'>".
+            "Export User Pages</a>";
+        }
+    
     echo "<hr><a href='server.php?action=show_import_pages'>Import Pages</a>";
     }
 
@@ -1635,15 +1667,27 @@ function pn_editPage() {
 
 
     
-    $query = "SELECT display_text, display_color, prompt_color, dest_names ".
-            "FROM $tableNamePrefix"."pages WHERE name='$name';";
+    $query = "SELECT display_text, display_color, prompt_color, dest_names,".
+        "ai_creator_id ".
+        "FROM $tableNamePrefix"."pages WHERE name='$name';";
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
 
     if( $numRows == 1 ) {
         echo "Editing page <b>$name</b>:<br><br>";
+        
+        $ai_creator_id = pn_mysqli_result( $result, 0, "ai_creator_id" );
 
+        if( $ai_creator_id > 0 ) {
+            $creatorEmail = pn_getEmail( $ai_creator_id );
+            
+            echo "Created by <a href='server.php?action=show_detail".
+                "&id=$ai_creator_id'>".
+                "$creatorEmail</a><br><br>";
+            }
+        
+        
         $dest_names = pn_mysqli_result( $result, 0, "dest_names" );
         
 
@@ -1736,8 +1780,16 @@ function pn_pageExists( $name ) {
 function pn_exportPages() {
     pn_checkPassword( "export_pages" );
 
-    pn_exportTable( "pages" );
+    pn_exportTable( "pages", "WHERE ai_creator_id = 0" );
     }
+
+
+function pn_exportUserPages() {
+    pn_checkPassword( "export_user_pages" );
+
+    pn_exportTable( "pages", "WHERE ai_creator_id > 0" );
+    }
+
 
 function pn_exportUsers() {
     pn_checkPassword( "export_users" );
@@ -1747,11 +1799,11 @@ function pn_exportUsers() {
 
 
 
-function pn_exportTable( $inTableName ) {
+function pn_exportTable( $inTableName, $inWhereClause = "" ) {
 
     global $tableNamePrefix;
     $query = "SELECT * ".
-        "FROM $tableNamePrefix"."$inTableName;";
+        "FROM $tableNamePrefix"."$inTableName $inWhereClause;";
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
@@ -4023,7 +4075,8 @@ function pn_purchase() {
                     "credits = '$totalNewCredits', ".
                     "current_page = '', client_sequence_number = '$seq', ".
                     "last_good_hash_time = CURRENT_TIMESTAMP, ".
-                    "num_times_exit_used = 0, conversations_logged = 0 ;";
+                    "num_times_exit_used = 0, conversations_logged = 0, ".
+                    "next_custom_page_id = 1;";
                 
                 $result = pn_queryDatabase( $query );
                 
