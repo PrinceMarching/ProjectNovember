@@ -29,6 +29,30 @@ function loadSoundObject( inURL ) {
 }
 
 
+
+// plays immediately after it's loaded
+function loadSoundObjectAndPlay( inURL ) {
+	var request = new XMLHttpRequest();
+	request.open('GET', inURL, true);
+	request.responseType = 'arraybuffer';
+	
+	var newSoundObj = { loaded: false, buffer: null };
+
+	// Decode asynchronously
+	request.onload = function() {
+		aContext.decodeAudioData( request.response, function(buffer) {
+			newSoundObj.buffer = buffer;
+			newSoundObj.loaded = true;
+			
+			playSoundObjectAtTime( newSoundObj, aContext.currentTime );
+		} );
+	}
+	request.send();
+}
+
+
+
+
 function playSoundObjectAtTime( inSoundObj, inTime ) {
 	if( ! inSoundObj.loaded ) {
 		return;

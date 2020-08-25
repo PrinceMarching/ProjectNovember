@@ -2266,8 +2266,10 @@ function pn_standardHeaderForPage( $inPageName, $inOpenUrl = "" ) {
     echo "page\n";
     // carried param
     echo "$inPageName\n";
-    // no URL:
+    // URL:
     echo "open_url=$inOpenUrl\n";
+    // no sound:
+    echo "play_sound_url=\n";
     // no typed display prefix
     echo "{}\n";
 
@@ -2342,6 +2344,8 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
             echo "$aiPageName\n";
             // no URL:
             echo "open_url=\n";
+            // no sound:
+            echo "play_sound_url=\n";
             // no typed display prefix
             echo "{}\n";
             
@@ -2567,6 +2571,8 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     echo "$aiOwnedID\n";
     // no URL:
     echo "open_url=\n";
+    // no sound:
+    echo "play_sound_url=\n";
     // Prefix what human types
     echo "{" . $humanTypedPrefix . "}\n";
 
@@ -2955,6 +2961,8 @@ function pn_talkAI() {
     echo "$aiOwnedID\n";
     // no URL:
     echo "open_url=\n";
+    // no sound:
+    echo "play_sound_url=\n";
     // Prefix what human types
     echo "{" . $humanTypedPrefix . "}\n";
     

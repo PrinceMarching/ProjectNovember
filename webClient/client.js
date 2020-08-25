@@ -1145,13 +1145,22 @@ function parseStandardResponse( inResponse ) {
 		openURLNewTab( popURL, 0 );
 	}
 
+	playSoundURLLine = parts[3];
+	
+	playSoundURL = playSoundURLLine.replace( "play_sound_url=", "" );
+
+	if( playSoundURL != "" ) {
+		loadSoundObjectAndPlay( playSoundURL );
+	}
+
 	// remove curly braces
-	nextTypedDisplayPrefix = parts[3].slice( 1, -1 );
-	nextTypedDisplayColor = parts[4];
-	let clearFlag = parts[5];
+	nextTypedDisplayPrefix = parts[4].slice( 1, -1 );
+	nextTypedDisplayColor = parts[5];
+	let clearFlag = parts[6];
 	if( clearFlag == 1 ) {
 		clearLineBuffers();
 		}
+	parts.shift();
 	parts.shift();
 	parts.shift();
 	parts.shift();

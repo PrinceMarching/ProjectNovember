@@ -10,6 +10,7 @@ The format of a {{SERVER_STANDARD_RESPONSE}} is as follows:
 response_action
 carried_param
 open_url=url
+play_sound_url=url
 typed_display_prefix
 typed_display_color
 clear_flag
