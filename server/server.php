@@ -124,7 +124,8 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
-                        "main", "owned", "error", "custom", "matrix_dead",
+                        "main", "owned", "error", "custom", "existing_custom",
+                        "matrix_dead",
                         "wipe_result", "builtIn", "spinUp", "buy_credits",
                         "insufficient_credits" );
 
@@ -3608,6 +3609,64 @@ function pn_initiateCustomCreate( $email ) {
 
 
 
+// updates next_custom_page_id
+function pn_getAICustomPageName( $email ) {
+    $uid = pn_getUserID( $email );
+
+    global $tableNamePrefix;
+    
+    $query = "SELECT next_custom_page_id FROM $tableNamePrefix"."users ".
+        "WHERE id = $uid;";
+
+    $result = pn_queryDatabase( $query );
+
+    $nextID = pn_mysqli_result( $result, 0, 0 );
+
+    pn_queryDatabase( "UPDATE $tableNamePrefix"."users ".
+                      "SET next_custom_page_id = next_custom_page_id + 1 ".
+                      "WHERE id = $uid;" );
+    return "AI_user_$uid"."_$nextID";
+    }
+
+
+
+function pn_getUniqueAISearchPhrase( $email ) {
+    global $tableNamePrefix;
+    
+    $hit = true;
+    $tryCount = 0;
+
+    $tryVal = pn_generateRandomPasswordSequence( $email, 3 );
+
+    while( $hit ) {
+
+        $query = "SELECT COUNT(*) FROM $tableNamePrefix"."pages ".
+            "WHERE ai_search_phrase = '$tryVal';";
+        $result = pn_queryDatabase( $query );
+
+        $count = pn_mysqli_result( $result, 0, 0 );
+
+        if( $count == 0 ) {
+            $hit = false;
+            }
+        else {
+            // try again
+            $tryVal = pn_generateRandomPasswordSequence( $email, 3 );
+
+            if( $tryCount > 10 ) {
+                // failed 10 times with plain words
+                // start adding number to end
+                $tryVal = $tryVal . " $tryCount";
+                }
+            }
+        $tryCount ++;
+        }
+    
+    
+    return $tryVal;
+    }
+
+
 
 function pn_customCreate() {    
     $email = pn_checkAndUpdateClientSeqNumber();
@@ -3785,9 +3844,56 @@ function pn_customCreate() {
             pn_standardResponseForPage( $email, "custom" );
             return;
             }
-        // FIXME:
         // have confirmation
         // time to actually build page
+
+        global $tableNamePrefix;
+
+        $name = pn_getAICustomPageName( $email );
+
+        $ai_name = $parts[1];
+        $ai_cost = $parts[2];
+        $display_color = $parts[3];
+        $prompt_color = $parts[4];
+        $ai_response_label = $parts[5] . ":";
+
+        // longevity = cost for coreWeave AI
+        // other back-ends may be priced differently
+        $ai_longevity = $ai_cost;
+
+        $paragraph = $parts[6];
+        $utter = $ai_response_label . " " . $parts[7];
+        
+        $body = $paragraph . "\n\n" . $utter;
+        $slashedBody = pn_mysqlEscape( $body );
+
+        // core weave for now
+        // maybe support other protocols later
+        $ai_protocol = "coreWeave";
+
+        $ai_creator_id = pn_getUserID( $email );
+
+        $ai_search_phrase = pn_getUniqueAISearchPhrase( $email );
+        
+        $query = "INSERT INTO $tableNamePrefix"."pages ".
+            "SET name = '$name', display_text = '$slashedBody', ".
+            "dest_names = '', ".
+            "display_color = '$display_color', ".
+            "prompt_color = '$prompt_color',".
+            "ai_name = '$ai_name',".
+            "ai_cost = '$ai_cost',".
+            "ai_response_label = '$ai_response_label',".
+            "ai_longevity = '$ai_longevity',".
+            "ai_protocol = '$ai_protocol',".
+            "ai_sound_url = '',".
+            "ai_creator_id = $ai_creator_id, ".
+            "ai_search_phrase='$ai_search_phrase';";
+
+        pn_queryDatabase( $query );
+
+        // show them their list of existing custom after creating
+        pn_standardResponseForPage( $email, "existing_custom" );
+        return;
         }
 
 
@@ -4026,13 +4132,11 @@ function pn_getSecureRandomBoundedInt( $inMaxVal, $inSecret ) {
 
 
 
-function pn_generateRandomPasswordSequence( $email ) {
+function pn_generateRandomPasswordSequence( $email, $numberOfWords = 4 ) {
 
     global $tableNamePrefix;
 
     $name = "";
-
-    $numberOfWords = 4;
 
     $words = array();
 
@@ -4202,7 +4306,7 @@ function pn_replaceVarsInLine( $email, $inLine ) {
             $menuNumber = $i + 1;
 
             $listText = $listText . " $menuNumber. $ai_name".
-                "\n    Secret: $ai_search_phrase\n";
+                "\n    Secret: $ai_search_phrase" .
                 "\n    Cost: $ai_cost Compute Credits.\n";
             }
         }
