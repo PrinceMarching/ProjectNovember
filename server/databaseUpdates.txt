@@ -24,3 +24,13 @@ ALTER TABLE novemberServer_pages ADD COLUMN ai_search_phrase VARCHAR(40) NOT NUL
 
 
 ALTER TABLE novemberServer_pages ADD INDEX( ai_search_phrase );
+
+
+
+
+
+
+
+ALTER TABLE novemberServer_pages ADD COLUMN ai_creator_deleted TINYINT NOT NULL DEFAULT 0 AFTER ai_search_phrase;
+
+ALTER TABLE novemberServer_pages ADD INDEX( ai_creator_deleted );

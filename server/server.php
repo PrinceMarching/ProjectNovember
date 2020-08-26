@@ -136,6 +136,7 @@ $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
 $replacableSpecialStrings = array( "%AI_OWNED_LIST%" => "",
                                    "%AI_OWNED_LIST_AFTER%" => "",
                                    "%AI_CUSTOM_LIST%" => "",
+                                   "%AI_CUSTOM_LIST_BRIEF%" => "",
                                    "%AI_CUSTOM_LIST_AFTER%" => "",
                                    "%ERROR_MESSAGE%" => "" );
 
@@ -166,6 +167,9 @@ else if( $action == "page" ) {
     }
 else if( $action == "purchase_ai" ) {
     pn_purchaseAI();
+    }
+else if( $action == "delete_ai" ) {
+    pn_deleteAI();
     }
 else if( $action == "talk_ai" ) {
     pn_talkAI();
@@ -551,7 +555,15 @@ function pn_setupDatabase() {
             // secret phrase that creator can give to other
             // users so that the AI can be found
             "ai_search_phrase VARCHAR(40) NOT NULL,".
-            "index( ai_search_phrase ) )";
+            "index( ai_search_phrase ), ".
+            // if original creator deletes, don't show it on their
+            // list anymore, and don't show up in search results
+            // but keep page around, because owned AIs might still
+            // point to this
+            // (when AI dies, can check if page is dead, and then
+            //  delete it)
+            "ai_creator_deleted TINYINT NOT NULL, ".
+            "index( ai_creator_deleted ) );";
         
         $result = pn_queryDatabase( $query );
 
@@ -1566,7 +1578,7 @@ function pn_showPages() {
         }
     
     
-    $query = "SELECT name, dest_names ".
+    $query = "SELECT name, dest_names, ai_creator_deleted ".
         "FROM $tableNamePrefix"."pages ".
         "$whereClause;";
     $result = pn_queryDatabase( $query );
@@ -1582,8 +1594,17 @@ function pn_showPages() {
     for( $i=0; $i<$numRows; $i++ ) {
         $name = pn_mysqli_result( $result, $i, "name" );
 
-        echo
-        "<a href='server.php?action=edit_page&name=$name'>$name</a><br><br>";
+        $deletedFlag = "";
+
+        $ai_creator_deleted =
+            pn_mysqli_result( $result, $i, "ai_creator_deleted" );
+
+        if( $ai_creator_deleted ) {
+            $deletedFlag = " [deleted]";
+            }
+        
+        echo "<a href='server.php?action=edit_page&name=$name'>$name</a>".
+            "$deletedFlag<br><br>";
 
         pn_arrayRemoveByValue( $missingPages, $name );
 
@@ -1621,6 +1642,7 @@ function pn_showPages() {
         if( preg_match( "/talk_AI/i", $name ) ||
             preg_match( "/custom_create/i", $name ) ||
             preg_match( "/purchase_AI/i", $name ) ||
+            preg_match( "/delete_AI/i", $name ) ||
             preg_match( "/purchase_credits/i", $name ) ) {
             pn_arrayRemoveByValue( $missingLinkedPages, $name );
             }        
@@ -1690,7 +1712,7 @@ function pn_editPage() {
 
     
     $query = "SELECT display_text, display_color, prompt_color, dest_names,".
-        "ai_creator_id, ai_search_phrase ".
+        "ai_creator_id, ai_search_phrase, ai_creator_deleted ".
         "FROM $tableNamePrefix"."pages WHERE name='$name';";
     $result = pn_queryDatabase( $query );
     
@@ -1707,6 +1729,11 @@ function pn_editPage() {
             echo "Created by <a href='server.php?action=show_detail".
                 "&id=$ai_creator_id'>".
                 "$creatorEmail</a><br><br>";
+            $ai_creator_deleted =
+                pn_mysqli_result( $result, 0, "ai_creator_deleted" );
+            if( $ai_creator_deleted ) {
+                echo "DELETED<br><br>";
+                }
             }
         $ai_search_phrase = pn_mysqli_result( $result, 0, "ai_search_phrase" );
 
@@ -1734,6 +1761,7 @@ function pn_editPage() {
                 ! preg_match( "/talk_AI/i", $n ) &&
                 ! preg_match( "/custom_create/i", $n ) &&
                 ! preg_match( "/purchase_AI/i", $n ) &&
+                ! preg_match( "/delete_AI/i", $n ) &&
                 ! preg_match( "/purchase_credits/i", $n ) ) {
 
                 if( preg_match( "/^[0-9]+#/", $n ) ) {
@@ -2176,7 +2204,7 @@ function pn_clientPage() {
             }
         else if( $n == "purchase_AI_custom" ) {
             $query = "SELECT name from $tableNamePrefix"."pages ".
-                "WHERE ai_creator_id = '$user_id';";
+                "WHERE ai_creator_id = '$user_id' AND ai_creator_deleted = 0;";
             
             $result = pn_queryDatabase( $query );
     
@@ -2188,6 +2216,24 @@ function pn_clientPage() {
                     $page_name = pn_mysqli_result( $result, $i, "name" );
 
                     $newDestList[ $nextIndex ] = "purchase_$page_name";
+                    $nextIndex ++;
+                    }
+                }
+            }
+        else if( $n == "delete_AI_custom" ) {
+            $query = "SELECT name from $tableNamePrefix"."pages ".
+                "WHERE ai_creator_id = '$user_id' AND ai_creator_deleted = 0;";
+            
+            $result = pn_queryDatabase( $query );
+    
+            $numRows = mysqli_num_rows( $result );
+
+            if( $numRows > 0 ) {
+                
+                for( $i=0; $i<$numRows; $i++ ) {
+                    $page_name = pn_mysqli_result( $result, $i, "name" );
+
+                    $newDestList[ $nextIndex ] = "delete_$page_name";
                     $nextIndex ++;
                     }
                 }
@@ -2234,6 +2280,11 @@ function pn_clientPage() {
                 // special case
                 // show purchase confirmation page
                 pn_showPurchaseConfirmation( $email, $pickedName );
+                }
+            else if( preg_match( "/delete_AI/", $pickedName ) ) {
+                // special case
+                // show delete confirmation page
+                pn_showDeleteConfirmation( $email, $pickedName );
                 }
             else if( preg_match( "/purchase_credits/", $pickedName ) ) {
                 // special case
@@ -2630,6 +2681,169 @@ function pn_purchaseAI() {
 
 
 
+
+
+function pn_showDeleteConfirmation( $email, $deletePageName ) {
+
+    $prefix = "delete_";
+
+    $aiPageName = substr( $deletePageName, strlen( $prefix ) );    
+
+
+    global $tableNamePrefix;
+    
+    $query = "SELECT * FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    $page_text = "";
+    
+    if( $numRows == 1 ) {
+
+        // next action
+        echo "delete_ai\n";
+        // carried param
+        echo "$aiPageName\n";
+        // no URL:
+        echo "open_url=\n";
+        // no sound:
+        echo "play_sound_url=\n";
+        // no typed display prefix
+        echo "{}\n";
+            
+            
+        global $defaultPagePromptColor;
+            
+        $prompt_color = $defaultPagePromptColor;
+            
+        // use prompt color for what user types being added to bottom
+        echo "$prompt_color\n";
+        
+        // don't clear
+        echo "0\n";
+            
+        $pageText = "\n\n       CONFIRM OPERATION\n\n";
+        
+        $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
+            
+            
+        $pageText = $pageText . "About to delete:  $ai_name\n";
+            
+        $pageText = $pageText . "Type \"confirm\" to execute.\n\n";
+        $pageText = $pageText . "Press ENTER to go back.\n";
+        }
+    else {
+        pn_showErrorPage( $email, "Matrix not found." );
+        return;
+        }
+    
+    
+
+    
+    global $defaultPageCharMS, $defaultPageTextColor;
+    
+    $text = pn_formatTextAsLines( $email, $pageText, $defaultPageTextColor,
+                                  $defaultPageCharMS,
+                                  $prompt_color );
+    echo $text;
+    }
+
+
+
+function pn_deleteAI() {
+    $email = pn_checkAndUpdateClientSeqNumber();
+
+    $aiPageName = pn_requestFilter( "carried_param", "/[A-Z0-9_]+/i", "" );
+
+    $command = strtoupper(
+        pn_requestFilter( "client_command", "/[A-Z]+/i", "" ) );
+
+
+    if( $command != "CONFIRM" ) {        
+        pn_standardResponseForPage( $email, "custom" );
+        return;
+        }
+
+    // they shouldn't be able to get here without enough credits
+    // confirm page should bounce them
+    // but check to make sure
+    global $tableNamePrefix;
+    
+    $query = "SELECT * FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+    
+    if( $numRows == 1 ) {
+        $ai_creator_id = pn_mysqli_result( $result, 0, "ai_creator_id" );
+        
+        if( $ai_creator_id != pn_getUserID( $email ) ) {
+            pn_showErrorPage( $email, "Cannot delete remote matrix." );
+            return;
+            }
+        else {
+
+            $query = "UPDATE $tableNamePrefix"."pages ".
+                "SET ai_creator_deleted = 1 ".
+                "WHERE name = '$aiPageName';";
+            
+            pn_queryDatabase( $query );
+
+            pn_purgeDeletedCustom();
+            
+            // show their custom page after deletion
+            pn_standardResponseForPage( $email, "custom" );
+            return;
+            }
+        }
+    else {
+        // ai_page not found?
+        // should never happen
+        // bounce them to MAIN
+        pn_showErrorPage( $email, "Requested matrix not found." );
+        return;
+        }
+    }
+
+
+
+function pn_purgeDeletedCustom() {
+    global $tableNamePrefix;
+
+    $query = "SELECT name FROM $tableNamePrefix"."pages ".
+        "WHERE ai_creator_id > 0 AND ai_creator_deleted = 1;";
+
+    $result = pn_queryDatabase( $query );
+
+    $numRows = mysqli_num_rows( $result );
+
+    for( $i=0; $i<$numRows; $i++ ) {
+        $name = pn_mysqli_result( $result, $i, "name" );
+
+        $resultB = pn_queryDatabase( "SELECT COUNT(*) ".
+                                     "FROM $tableNamePrefix"."owned_ai ".
+                                     "WHERE page_name = '$name';" );
+
+        $count = pn_mysqli_result( $resultB, 0, 0 );
+        if( $count == 0 ) {
+            pn_queryDatabase( "DELETE FROM $tableNamePrefix"."pages ".
+                              "WHERE name = '$name';" );
+            }
+        }
+    }
+
+
+
+
+
+
+
+
 function pn_initiateTalkAI( $email, $pickedName ) {
     $prefix = "talk_AI_";
 
@@ -2686,6 +2900,9 @@ function pn_initiateTalkAI( $email, $pickedName ) {
 
     $display_color = pn_mysqli_result( $result, 0, "display_color" );
 
+    global $defaultPageCharMS;
+    
+    
     pn_queryDatabase( "UPDATE $tableNamePrefix"."owned_ai ".
                       "SET first_response_sent = 0 ".
                       "WHERE id = '$aiOwnedID';" );
@@ -2880,6 +3097,10 @@ function pn_talkAI() {
             "WHERE id = '$aiOwnedID' ";
         pn_queryDatabase( $query );
 
+        // some custom deleted pages may be unused after this owned AI
+        // dies
+        pn_purgeDeletedCustom();
+        
         sleep( 3 );
         
         pn_standardResponseForPage( $email, "matrix_dead" );
@@ -4286,9 +4507,10 @@ function pn_replaceVarsInLine( $email, $inLine ) {
     
     // next replace custom AI list
     $query = "SELECT * from $tableNamePrefix"."pages ".
-        "WHERE ai_creator_id = '$user_id';";
+        "WHERE ai_creator_id = '$user_id' AND ai_creator_deleted = 0;";
     $after = 1;
     $listText = "";
+    $listTextBrief = "";
     
     $result = pn_queryDatabase( $query );
     
@@ -4306,13 +4528,20 @@ function pn_replaceVarsInLine( $email, $inLine ) {
             $menuNumber = $i + 1;
 
             $listText = $listText . " $menuNumber. $ai_name".
-                "\n    Secret: $ai_search_phrase" .
+                "\n    Remote Secret:".
+                "\n      $ai_search_phrase" .
                 "\n    Cost: $ai_cost Compute Credits.\n";
+
+            $listTextBrief = $listTextBrief . " $menuNumber. $ai_name\n";
             }
         }
 
     
     $inLine = preg_replace( "/%AI_CUSTOM_LIST%/", $listText, $inLine );    
+
+    $inLine = preg_replace( "/%AI_CUSTOM_LIST_BRIEF%/",
+                            $listTextBrief, $inLine );    
+
     $inLine = preg_replace( "/%AI_CUSTOM_LIST_AFTER%/", $after, $inLine );
     
         
