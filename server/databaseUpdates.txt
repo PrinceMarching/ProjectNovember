@@ -18,3 +18,9 @@ ALTER TABLE novemberServer_pages ADD COLUMN ai_creator_id INT NOT NULL DEFAULT 0
 ALTER TABLE novemberServer_pages ADD INDEX( ai_creator_id );
 
 
+
+
+ALTER TABLE novemberServer_pages ADD COLUMN ai_search_phrase VARCHAR(40) NOT NULL AFTER ai_creator_id;
+
+
+ALTER TABLE novemberServer_pages ADD INDEX( ai_search_phrase );

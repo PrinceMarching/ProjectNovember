@@ -124,7 +124,7 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
-                        "main", "owned", "error", "matrix_dead",
+                        "main", "owned", "error", "custom", "matrix_dead",
                         "wipe_result", "builtIn", "spinUp", "buy_credits",
                         "insufficient_credits" );
 
@@ -545,7 +545,12 @@ function pn_setupDatabase() {
             "ai_sound_url TEXT NOT NULL, ".
             // user id of ai author
             // 0 for pages created by admin
-            "ai_creator_id INT NOT NULL )";
+            "ai_creator_id INT NOT NULL, ".
+            "index( ai_creator_id ), ".
+            // secret phrase that creator can give to other
+            // users so that the AI can be found
+            "ai_search_phrase VARCHAR(40) NOT NULL,".
+            "index( ai_search_phrase ) )";
         
         $result = pn_queryDatabase( $query );
 
@@ -832,7 +837,7 @@ function pn_updatePage( $inCreateNewOnly ) {
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
             "ai_sound_url = '$ai_sound_url',".
-            "ai_creator_id = 0;";
+            "ai_creator_id = 0, ai_search_phrase='';";
 
         
         global $pn_mysqlLink;
@@ -1684,7 +1689,7 @@ function pn_editPage() {
 
     
     $query = "SELECT display_text, display_color, prompt_color, dest_names,".
-        "ai_creator_id ".
+        "ai_creator_id, ai_search_phrase ".
         "FROM $tableNamePrefix"."pages WHERE name='$name';";
     $result = pn_queryDatabase( $query );
     
@@ -1701,6 +1706,11 @@ function pn_editPage() {
             echo "Created by <a href='server.php?action=show_detail".
                 "&id=$ai_creator_id'>".
                 "$creatorEmail</a><br><br>";
+            }
+        $ai_search_phrase = pn_mysqli_result( $result, 0, "ai_search_phrase" );
+
+        if( $ai_search_phrase != "" ) {
+            echo "Search phrase:  $ai_search_phrase<br><br>";
             }
         
         
@@ -3530,6 +3540,36 @@ function pn_wipeConversationBuffer( $aiOwnedID ) {
     }
 
 
+// true if color okay, false if too dark
+function pn_checkHexColor( $inHex ) {
+    // skip #
+    $hex = substr( $inHex, 1 );
+    
+    $parts = str_split( $hex, 2 );
+
+    $r = hexdec( $parts[0] );
+    $g = hexdec( $parts[1] );
+    $b = hexdec( $parts[2] );
+
+    // perceived brightness formula found here:
+    // https://stackoverflow.com/questions/596216/
+    //         formula-to-determine-brightness-of-rgb-color
+
+    // perceived brighness is actually non-linear, but this will
+    // do for now
+    $brightness =
+        0.299 * $r +
+        0.587 * $g +
+        0.114 * $b;
+    
+    
+    if( $brightness > 64 ) {
+        return true;
+        }
+    
+    return false;
+    }
+
 
 
 function pn_initiateCustomCreate( $email ) {
@@ -3591,63 +3631,150 @@ function pn_customCreate() {
 
     $promptText = "";
     $promptTextB = "";
+    $promptTextC = "";
     
     $partToAdd = "";
-
+    // allow error condition, where we ask them for this part again
+    $addNewPart = true;
+    
     $showTheirTextA = "";
     $showTheirTextB = "";
+
+    global $defaultPagePromptColor, $defaultPageTextColor, $defaultPageCharMS;
+
+    $showTheirTextAColor = $defaultPagePromptColor;
+    $showTheirTextBColor = $defaultPagePromptColor;
+    
+
+    // check for "exit"
+    if( "EXIT" ==
+        strtoupper( pn_requestFilter( "client_command",
+                                      "/[A-Z0-9 \-]+/i", "" ) ) ) {
+        pn_standardResponseForPage( $email, "custom" );
+        return;
+        }
+    
     
     if( $numParts == 1 ) {
         // matrix name
         $partToAdd =
-        strtoupper( pn_requestFilter( "client_command",
-                                      "/[A-Z0-9 \-]+/i", "" ) );
-        $showTheirTextA = "Matrix will be called: $partToAdd.";
-        
-        $promptText = "Enter matrix cost in credits:";
+            strtoupper( pn_requestFilter( "client_command",
+                                          "/[A-Z0-9 \-]+/i", "" ) );
+
+        if( $partToAdd == "" ) {
+            $promptText = "  Invalid name.";
+            $promptTextB = "Enter new matrix name:";
+            $addNewPart = false;
+            }
+        else {
+            $showTheirTextA = "  Matrix will be called:";
+            $showTheirTextB = "  $partToAdd";
+            
+            $promptText = "Enter matrix cost in Credits:";
+            }
         }
     else if( $numParts == 2 ) {
         // matrix cost
-        $partToAdd = pn_requestFilter( "client_command", "/[0-9]+/i", "50" );
+        $partToAdd = pn_requestFilter( "client_command", "/[0-9]+/i", "0" );
 
-        $showTheirTextA = "Matrix will cost $partToAdd Compute Credits.";
+        if( $partToAdd < 15 ) {
+            $promptText = "  Minumum cost is 15 Credits.";
+            $promptTextB = "Enter matrix cost in credits:";
+            $addNewPart = false;
+            }
+        else {
         
-        $promptText = "Enter matrix text response label:";
+            $showTheirTextA = "  Matrix will cost $partToAdd Credits.";
+            
+            $promptText = "  Use hex for colors, like: #FF8800";
+            $promptTextB = "Enter matrix response color:";
+            }
         }
     else if( $numParts == 3 ) {
+        // matrix text color
+        $partToAdd = strtoupper(
+            pn_requestFilter( "client_command", "/#[0-9A-F]{6}/i",
+                              "" ) );
+
+        if( $partToAdd == "" ) {
+            $promptText  = "  Bad color value.  Use hex, like:";
+            $promptTextB = "  #FF8800";
+            $promptTextC = "Enter matrix response color:";
+            $addNewPart = false;
+            }
+        else if( pn_checkHexColor( $partToAdd ) ) {
+            $showTheirTextA = "  Matrix responses will have";
+            $showTheirTextB = "  this color.";
+            $showTheirTextAColor = $partToAdd;
+            $showTheirTextBColor = $partToAdd;
+            $promptText = "Enter human response color:";
+            }
+        else {
+            $promptText = "  Color is too dark.";
+            $promptTextB = "Enter matrix response color:";
+            $addNewPart = false;
+            }
+        }
+    else if( $numParts == 4 ) {
+        // human text color
+        $partToAdd = strtoupper(
+            pn_requestFilter( "client_command", "/#[0-9A-F]{6}/i",
+                              "" ) );
+
+        if( $partToAdd == "" ) {
+            $promptText  = "  Bad color value.  Use hex, like:";
+            $promptTextB = "  #FF8800";
+            $promptTextC = "Enter human response color:";
+            $addNewPart = false;
+            }
+        else if( pn_checkHexColor( $partToAdd ) ) {
+            $showTheirTextA = "  Human responses will have";
+            $showTheirTextB = "  this color.";
+            $showTheirTextAColor = $partToAdd;
+            $showTheirTextBColor = $partToAdd;
+            $promptText = "Enter matrix text response label:";
+            }
+        else {
+            $promptText = "  Color is too dark.";
+            $promptTextB = "Enter human response color:";
+            $addNewPart = false;
+            }
+        }
+    else if( $numParts == 5 ) {
         // matrix text prompt
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9 \-]+/i", "Computer" );
 
-        $showTheirTextA = "Matrix responses will start with:";
-        $showTheirTextB = "$partToAdd:";
-        
+        $showTheirTextA = "  Matrix responses will start with:";
+        $showTheirTextB = "  $partToAdd:";
+        $showTheirTextBColor = $parts[3];
+
         $promptText = "Enter intro paragraph:";
         }
-    else if( $numParts == 4 ) {
+    else if( $numParts == 6 ) {
         // intro paragraph
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9 .!?'\"$%()&\-,;+=]+/i", "" );
-        $showTheirTextA = "Intro paragraph for matrix:";
-        $showTheirTextB = "$partToAdd";
+        $showTheirTextA = "  Intro paragraph for matrix:";
+        $showTheirTextB = "  $partToAdd";
 
         $promptText = "Enter example utterance:";
         }
-    else if( $numParts == 5 ) {
+    else if( $numParts == 7 ) {
         // example utterance
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9 .!?'\"$%()&\-,;+=]+/i", "" );
 
-        $showTheirTextA = "Example utterance:";
-        $label = $parts[3];
+        $showTheirTextA = "  Example utterance:";
+        $label = $parts[5];
         
-        $showTheirTextB = "$label: $partToAdd";
-        
+        $showTheirTextB = "  $label: $partToAdd";
+        $showTheirTextBColor = $parts[3];
 
         $promptText = "Type \"confirm\" to construct matrix.";
         $promptTextB = "Press ENTER to go back.";
         }
-    else if( $numParts == 6 ) {
+    else if( $numParts == 8 ) {
         // have everything we need to make AI page here
 
         $command = strtoupper(
@@ -3655,7 +3782,7 @@ function pn_customCreate() {
         
 
         if( $command != "CONFIRM" ) {        
-            pn_standardResponseForPage( $email, "main" );
+            pn_standardResponseForPage( $email, "custom" );
             return;
             }
         // FIXME:
@@ -3663,8 +3790,10 @@ function pn_customCreate() {
         // time to actually build page
         }
 
-    
-    $carried_param = $carried_param . "\n$partToAdd";
+
+    if( $addNewPart ) {
+        $carried_param = $carried_param . "\n$partToAdd";
+        }
     
     // next action
     echo "custom_create\n";
@@ -3681,7 +3810,6 @@ function pn_customCreate() {
     echo "{}\n";
 
 
-    global $defaultPagePromptColor, $defaultPageTextColor, $defaultPageCharMS;
     
     echo "$defaultPagePromptColor\n";
     
@@ -3693,12 +3821,12 @@ function pn_customCreate() {
 
     if( $showTheirTextA != "" ) {
         echo
-            "\n[$defaultPagePromptColor] [$defaultPageCharMS] [0] [0] ".
+            "\n[$showTheirTextAColor] [$defaultPageCharMS] [0] [0] ".
             "$showTheirTextA";
         }
     if( $showTheirTextB != "" ) {
         echo
-            "\n[$defaultPagePromptColor] [$defaultPageCharMS] [0] [0] ".
+            "\n[$showTheirTextBColor] [$defaultPageCharMS] [0] [0] ".
             "$showTheirTextB";
         }
     
@@ -3712,6 +3840,11 @@ function pn_customCreate() {
         echo
             "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
             "$promptTextB";
+        }
+    if( $promptTextC != "" ) {
+        echo
+            "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+            "$promptTextC";
         }
     }
 
@@ -4063,10 +4196,13 @@ function pn_replaceVarsInLine( $email, $inLine ) {
         for( $i=0; $i<$numRows; $i++ ) {
             $ai_name = pn_mysqli_result( $result, $i, "ai_name" );
             $ai_cost = pn_mysqli_result( $result, $i, "ai_cost" );
+            $ai_search_phrase =
+                pn_mysqli_result( $result, $i, "ai_search_phrase" );
 
             $menuNumber = $i + 1;
 
             $listText = $listText . " $menuNumber. $ai_name".
+                "\n    Secret: $ai_search_phrase\n";
                 "\n    Cost: $ai_cost Compute Credits.\n";
             }
         }
