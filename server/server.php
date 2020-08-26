@@ -134,6 +134,8 @@ $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
 
 $replacableSpecialStrings = array( "%AI_OWNED_LIST%" => "",
                                    "%AI_OWNED_LIST_AFTER%" => "",
+                                   "%AI_CUSTOM_LIST%" => "",
+                                   "%AI_CUSTOM_LIST_AFTER%" => "",
                                    "%ERROR_MESSAGE%" => "" );
 
 
@@ -166,6 +168,9 @@ else if( $action == "purchase_ai" ) {
     }
 else if( $action == "talk_ai" ) {
     pn_talkAI();
+    }
+else if( $action == "custom_create" ) {
+    pn_customCreate();
     }
 else if( $action == "show_log" ) {
     pn_showLog();
@@ -1506,12 +1511,12 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
     
     if( count( $replacableUserStrings ) > 0 ||
         count( $replacableAIStrings ) >  0 ) {
-        echo "<br>Variables: ";
+        echo "<br>Variables: | ";
         foreach( $replacableUserStrings as $s => $v ) {
-            echo "$s ";
+            echo "$s | ";
             }
         foreach( $replacableSpecialStrings as $s => $v ) {
-            echo "$s ";
+            echo "$s | ";
             }
         }
     }
@@ -1581,6 +1586,16 @@ function pn_showPages() {
         $destParts = preg_split( "/,/", $dest_names ); 
 
         foreach( $destParts as $p ) {
+            if( preg_match( "/^[0-9]+#/", $p ) ) {
+                // a hidden destination page with an off-list page number
+                // at the front
+                // strip number off
+                $parts = preg_split( "/#/", $p );
+                if( count( $parts ) == 2 ) {
+                    $p = $parts[1];
+                    }
+                }
+            
             if( $p != "" && array_search( $p, $linkedPages ) === FALSE ) {
                 $linkedPages[] = $p;
                 }
@@ -1598,6 +1613,7 @@ function pn_showPages() {
     // trigger dest names shouldn't be listed
     foreach( $missingLinkedPages as $name ) {
         if( preg_match( "/talk_AI/i", $name ) ||
+            preg_match( "/custom_create/i", $name ) ||
             preg_match( "/purchase_AI/i", $name ) ||
             preg_match( "/purchase_credits/i", $name ) ) {
             pn_arrayRemoveByValue( $missingLinkedPages, $name );
@@ -1705,8 +1721,19 @@ function pn_editPage() {
         foreach( $destParts as $n ) {
             if( $n != "" &&
                 ! preg_match( "/talk_AI/i", $n ) &&
+                ! preg_match( "/custom_create/i", $n ) &&
                 ! preg_match( "/purchase_AI/i", $n ) &&
                 ! preg_match( "/purchase_credits/i", $n ) ) {
+
+                if( preg_match( "/^[0-9]+#/", $n ) ) {
+                    // a hidden destination page with an off-list page number
+                    // at the front
+                    // strip it off
+                    $parts = preg_split( "/#/", $n );
+                    if( count( $parts ) == 2 ) {
+                        $n = $parts[1];
+                        }
+                    }
                 
                 if( pn_pageExists( $n ) ) {
                     
@@ -2136,6 +2163,24 @@ function pn_clientPage() {
                     }
                 }
             }
+        else if( $n == "purchase_AI_custom" ) {
+            $query = "SELECT name from $tableNamePrefix"."pages ".
+                "WHERE ai_creator_id = '$user_id';";
+            
+            $result = pn_queryDatabase( $query );
+    
+            $numRows = mysqli_num_rows( $result );
+
+            if( $numRows > 0 ) {
+                
+                for( $i=0; $i<$numRows; $i++ ) {
+                    $page_name = pn_mysqli_result( $result, $i, "name" );
+
+                    $newDestList[ $nextIndex ] = "purchase_$page_name";
+                    $nextIndex ++;
+                    }
+                }
+            }
         else if( preg_match( "/^[0-9]+#/", $n ) ) {
             // a hidden destination page with an off-list page number
             // at the front
@@ -2167,6 +2212,12 @@ function pn_clientPage() {
                 // initiate talk
 
                 pn_initiateTalkAI( $email, $pickedName );
+                }
+            else if( preg_match( "/custom_create/", $pickedName ) ) {
+                // special case
+                // initiate cutstom creation
+
+                pn_initiateCustomCreate( $email );
                 }
             else if( preg_match( "/purchase_AI/", $pickedName ) ) {
                 // special case
@@ -3481,6 +3532,190 @@ function pn_wipeConversationBuffer( $aiOwnedID ) {
 
 
 
+function pn_initiateCustomCreate( $email ) {
+
+    // next action
+    echo "custom_create\n";
+
+    // carried param has magic string WORKING to start
+    $carried_param = urlencode( pn_encryptBuffer( "WORKING" ) );
+    
+    echo "$carried_param\n";
+    
+    // no URL:
+    echo "open_url=\n";
+    // no sound:
+    echo "play_sound_url=\n";
+    // no prefix for what they type
+    echo "{}\n";
+
+
+    global $defaultPagePromptColor, $defaultPageTextColor, $defaultPageCharMS;
+    
+    echo "$defaultPagePromptColor\n";
+    
+    // DO clear
+    echo "1\n";
+
+    // use it for prompt too
+    echo "$defaultPagePromptColor\n";
+
+    // first prompt
+    echo
+    "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "Enter new matrix name:";
+    }
+
+
+
+
+function pn_customCreate() {    
+    $email = pn_checkAndUpdateClientSeqNumber();
+
+    // no filtering
+    // will be automatically url-decoded by PHP
+    $carried_param = $_REQUEST[ "carried_param" ];
+    
+    $carried_param = pn_decryptBuffer( $carried_param );
+
+    if( ! preg_match( "/^WORKING/", $carried_param ) ) {
+        pn_showErrorPage( $email, "Working data corrupted." );
+        pn_log( "Corrupted carried_param = '$carried_param'" );
+        return;
+        }
+
+    $parts = preg_split( "/\n/", $carried_param );
+
+
+    $numParts = count( $parts );
+
+    $promptText = "";
+    $promptTextB = "";
+    
+    $partToAdd = "";
+
+    $showTheirTextA = "";
+    $showTheirTextB = "";
+    
+    if( $numParts == 1 ) {
+        // matrix name
+        $partToAdd =
+        strtoupper( pn_requestFilter( "client_command",
+                                      "/[A-Z0-9 \-]+/i", "" ) );
+        $showTheirTextA = "Matrix will be called: $partToAdd.";
+        
+        $promptText = "Enter matrix cost in credits:";
+        }
+    else if( $numParts == 2 ) {
+        // matrix cost
+        $partToAdd = pn_requestFilter( "client_command", "/[0-9]+/i", "50" );
+
+        $showTheirTextA = "Matrix will cost $partToAdd Compute Credits.";
+        
+        $promptText = "Enter matrix text response label:";
+        }
+    else if( $numParts == 3 ) {
+        // matrix text prompt
+        $partToAdd = pn_requestFilter( "client_command",
+                                       "/[A-Z0-9 \-]+/i", "Computer" );
+
+        $showTheirTextA = "Matrix responses will start with:";
+        $showTheirTextB = "$partToAdd:";
+        
+        $promptText = "Enter intro paragraph:";
+        }
+    else if( $numParts == 4 ) {
+        // intro paragraph
+        $partToAdd = pn_requestFilter( "client_command",
+                                       "/[A-Z0-9 .!?'\"$%()&\-,;+=]+/i", "" );
+        $showTheirTextA = "Intro paragraph for matrix:";
+        $showTheirTextB = "$partToAdd";
+
+        $promptText = "Enter example utterance:";
+        }
+    else if( $numParts == 5 ) {
+        // example utterance
+        $partToAdd = pn_requestFilter( "client_command",
+                                       "/[A-Z0-9 .!?'\"$%()&\-,;+=]+/i", "" );
+
+        $showTheirTextA = "Example utterance:";
+        $label = $parts[3];
+        
+        $showTheirTextB = "$label: $partToAdd";
+        
+
+        $promptText = "Type \"confirm\" to construct matrix.";
+        $promptTextB = "Press ENTER to go back.";
+        }
+    else if( $numParts == 6 ) {
+        // have everything we need to make AI page here
+
+        $command = strtoupper(
+            pn_requestFilter( "client_command", "/[A-Z]+/i", "" ) );
+        
+
+        if( $command != "CONFIRM" ) {        
+            pn_standardResponseForPage( $email, "main" );
+            return;
+            }
+        // FIXME:
+        // have confirmation
+        // time to actually build page
+        }
+
+    
+    $carried_param = $carried_param . "\n$partToAdd";
+    
+    // next action
+    echo "custom_create\n";
+
+    $carried_param = urlencode( pn_encryptBuffer( "$carried_param" ) );
+    
+    echo "$carried_param\n";
+    
+    // no URL:
+    echo "open_url=\n";
+    // no sound:
+    echo "play_sound_url=\n";
+    // no prefix for what they type
+    echo "{}\n";
+
+
+    global $defaultPagePromptColor, $defaultPageTextColor, $defaultPageCharMS;
+    
+    echo "$defaultPagePromptColor\n";
+    
+    // do not clear
+    echo "0\n";
+
+    // use it for prompt too
+    echo "$defaultPagePromptColor\n";
+
+    if( $showTheirTextA != "" ) {
+        echo
+            "\n[$defaultPagePromptColor] [$defaultPageCharMS] [0] [0] ".
+            "$showTheirTextA";
+        }
+    if( $showTheirTextB != "" ) {
+        echo
+            "\n[$defaultPagePromptColor] [$defaultPageCharMS] [0] [0] ".
+            "$showTheirTextB";
+        }
+    
+
+    
+    echo
+    "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "$promptText";
+
+    if( $promptTextB != "" ) {
+        echo
+            "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+            "$promptTextB";
+        }
+    }
+
+
 
 
 function pn_checkClientSeqHash( $email ) {
@@ -3754,12 +3989,18 @@ function pn_replaceVarsInLine( $email, $inLine ) {
 
         $inLine = preg_replace( "/$v/", $cValue, $inLine );
         }
+
+    
+    global $lastErrorMessage;
+    $inLine = preg_replace( "/%ERROR_MESSAGE%/",
+                            $lastErrorMessage, $inLine );    
+
     
     if( substr_count( $inLine, "%" ) == 0 ) {
         // no vars left in this line
         return $inLine;
         }
-    //return $inLine;
+    
     
     $user_id =  pn_mysqli_result( $result, 0, "id" );
 
@@ -3797,9 +4038,43 @@ function pn_replaceVarsInLine( $email, $inLine ) {
     $inLine = preg_replace( "/%AI_OWNED_LIST%/", $listText, $inLine );    
     $inLine = preg_replace( "/%AI_OWNED_LIST_AFTER%/", $after, $inLine );    
 
-    global $lastErrorMessage;
-    $inLine = preg_replace( "/%ERROR_MESSAGE%/",
-                            $lastErrorMessage, $inLine );    
+
+    if( substr_count( $inLine, "%" ) == 0 ) {
+        // no vars left in this line
+        return $inLine;
+        }
+
+
+
+    
+    // next replace custom AI list
+    $query = "SELECT * from $tableNamePrefix"."pages ".
+        "WHERE ai_creator_id = '$user_id';";
+    $after = 1;
+    $listText = "";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        $after = $numRows + 1;
+
+        for( $i=0; $i<$numRows; $i++ ) {
+            $ai_name = pn_mysqli_result( $result, $i, "ai_name" );
+            $ai_cost = pn_mysqli_result( $result, $i, "ai_cost" );
+
+            $menuNumber = $i + 1;
+
+            $listText = $listText . " $menuNumber. $ai_name".
+                "\n    Cost: $ai_cost Compute Credits.\n";
+            }
+        }
+
+    
+    $inLine = preg_replace( "/%AI_CUSTOM_LIST%/", $listText, $inLine );    
+    $inLine = preg_replace( "/%AI_CUSTOM_LIST_AFTER%/", $after, $inLine );
+    
         
     return $inLine;
     }
