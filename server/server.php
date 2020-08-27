@@ -125,15 +125,17 @@ if( isset( $_SERVER[ "REMOTE_ADDR" ] ) ) {
 
 $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
                         "main", "owned", "error", "custom", "existing_custom",
-                        "matrix_dead",
+                        "matrix_dead", "purchase",
                         "wipe_result", "builtIn", "spinUp", "buy_credits",
-                        "insufficient_credits" );
+                        "insufficient_credits", "insufficient_credits_remote" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
                                 "%CREDITS%" => "credits" );
 
-$replacableSpecialStrings = array( "%AI_OWNED_LIST%" => "",
+$replacableSpecialStrings = array( "%NEEDED_CREDITS%" => "",
+                                   "%TRY_PURCHASE_NAME%" => "",
+                                   "%AI_OWNED_LIST%" => "",
                                    "%AI_OWNED_LIST_AFTER%" => "",
                                    "%AI_CUSTOM_LIST%" => "",
                                    "%AI_CUSTOM_LIST_BRIEF%" => "",
@@ -170,6 +172,9 @@ else if( $action == "purchase_ai" ) {
     }
 else if( $action == "delete_ai" ) {
     pn_deleteAI();
+    }
+else if( $action == "custom_search" ) {
+    pn_customSearch();
     }
 else if( $action == "talk_ai" ) {
     pn_talkAI();
@@ -1643,6 +1648,7 @@ function pn_showPages() {
             preg_match( "/custom_create/i", $name ) ||
             preg_match( "/purchase_AI/i", $name ) ||
             preg_match( "/delete_AI/i", $name ) ||
+            preg_match( "/custom_search/i", $name ) ||
             preg_match( "/purchase_credits/i", $name ) ) {
             pn_arrayRemoveByValue( $missingLinkedPages, $name );
             }        
@@ -1762,6 +1768,7 @@ function pn_editPage() {
                 ! preg_match( "/custom_create/i", $n ) &&
                 ! preg_match( "/purchase_AI/i", $n ) &&
                 ! preg_match( "/delete_AI/i", $n ) &&
+                ! preg_match( "/custom_search/i", $n ) &&
                 ! preg_match( "/purchase_credits/i", $n ) ) {
 
                 if( preg_match( "/^[0-9]+#/", $n ) ) {
@@ -2276,6 +2283,12 @@ function pn_clientPage() {
 
                 pn_initiateCustomCreate( $email );
                 }
+            else if( preg_match( "/custom_search/", $pickedName ) ) {
+                // special case
+                // initiate cutstom search
+
+                pn_initiateCustomSearch( $email );
+                }
             else if( preg_match( "/purchase_AI/", $pickedName ) ) {
                 // special case
                 // show purchase confirmation page
@@ -2508,8 +2521,13 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
     
     if( $numRows == 1 ) {
         $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
+        $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
         
         if( $ai_cost > pn_getUserCredits( $email ) ) {
+            global $neededCredits, $tryPurchaseName;
+            $neededCredits = $ai_cost;
+            $tryPurchaseName = $ai_name;
+
             pn_standardResponseForPage( $email, "insufficient_credits" );
             return;
             }
@@ -2537,10 +2555,7 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
             // don't clear
             echo "0\n";
             
-            $pageText = "\n\n       CONFIRM OPERATION\n\n";
-
-            $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
-            
+            $pageText = "\n\n       CONFIRM OPERATION\n\n";            
             
             $pageText = $pageText . "About to spin up:  $ai_name\n";
             $pageText = $pageText . "Spin will spend:   $ai_cost credits\n";
@@ -2629,7 +2644,15 @@ function pn_purchaseAI() {
 
 
     if( $command != "CONFIRM" ) {        
-        pn_standardResponseForPage( $email, "main" );
+
+        if( preg_match( "/^AI_user_/", $aiPageName ) ) {
+            // show the custom area after they fail to confirm
+            pn_standardResponseForPage( $email, "custom" );
+            }
+        else {
+            // show the main purchase area, for pre-defined AIs
+            pn_standardResponseForPage( $email, "purchase" );
+            }
         return;
         }
 
@@ -4178,6 +4201,129 @@ function pn_customCreate() {
 
 
 
+function pn_initiateCustomSearch( $email, $inMessage = "",
+                                  $inMoreCredits = false ) {
+
+    // next action
+    echo "custom_search\n";
+
+    $carried_param = "";
+    echo "$carried_param\n";
+    
+    // no URL:
+    echo "open_url=\n";
+    // no sound:
+    echo "play_sound_url=\n";
+    // no prefix for what they type
+    echo "{}\n";
+
+
+    global $defaultPagePromptColor, $defaultPageTextColor, $defaultPageCharMS;
+    
+    echo "$defaultPagePromptColor\n";
+    
+    // DO not clear
+    echo "0\n";
+
+    // use it for prompt too
+    echo "$defaultPagePromptColor\n";
+
+    // first prompt
+
+    // blank line
+    echo "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ";
+
+    if( $inMessage == "" ) {
+        echo
+            "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+            "  (type 'exit' to cancel search)";
+        }
+    else {
+        echo
+            "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+            "  $inMessage";
+        echo "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ";
+        }
+    
+    echo
+    "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "Enter Remote Secret to search for:";
+    }
+
+
+
+function pn_customSearch() {    
+    $email = pn_checkAndUpdateClientSeqNumber();
+    $uid = pn_getUserID( $email );
+
+    global $defaultPagePromptColor, $defaultPageTextColor, $defaultPageCharMS;
+
+    // check for "exit"
+    if( "EXIT" ==
+        strtoupper( pn_requestFilter( "client_command",
+                                      "/[A-Z0-9 \-]+/i", "" ) ) ) {
+        pn_standardResponseForPage( $email, "custom" );
+        return;
+        }
+    
+    
+    $remoteSecret =
+        strtolower( pn_requestFilter( "client_command",
+                                      "/[A-Z0-9 ]+/i", "" ) );
+
+    if( $remoteSecret == "" ) {
+        pn_standardResponseForPage( $email, "custom" );
+        return;
+        }
+
+    // normalize to one space between words
+    $remoteSecret = join( " ", preg_split( "/\s+/", $remoteSecret ) );
+    
+    global $tableNamePrefix;
+    
+    $query = "SELECT name, ai_name, ai_cost, ai_creator_id ".
+        "FROM $tableNamePrefix"."pages ".
+        "WHERE ai_creator_id > 0 ".
+        "      AND ai_search_phrase = '$remoteSecret';";
+
+    $result = pn_queryDatabase( $query );
+
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 0 ) {
+        pn_initiateCustomSearch( $email, "Matching matrix not found." );
+        return;
+        }
+    $name = pn_mysqli_result( $result, 0, "name" );
+    $ai_creator_id = pn_mysqli_result( $result, 0, "ai_creator_id" );
+    $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
+
+    if( $ai_creator_id == $uid ) {
+        pn_initiateCustomSearch( $email, "Matrix $ai_name is local." );
+        return;
+        }
+
+    $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
+
+    $user_credits = pn_getUserCredits( $email );
+    
+    if( $ai_cost > $user_credits ) {
+        global $neededCredits, $tryPurchaseName;
+        $neededCredits = $ai_cost;
+        $tryPurchaseName = $ai_name;
+        
+        pn_standardResponseForPage( $email, "insufficient_credits_remote" );
+        
+        return;
+        }
+    
+    pn_showPurchaseConfirmation( $email, "purchase_$name" );
+    }
+
+    
+
+
+
 function pn_checkClientSeqHash( $email ) {
     global $sharedGameServerSecret;
 
@@ -4412,6 +4558,9 @@ function pn_generateRandomLastName() {
 
 
 
+// Gets replaced with number of credits needed when purchase fails
+$neededCredits = 0;
+$tryPurchaseName = "";
 
 
 function pn_replaceVarsInLine( $email, $inLine ) {
@@ -4458,7 +4607,28 @@ function pn_replaceVarsInLine( $email, $inLine ) {
         // no vars left in this line
         return $inLine;
         }
+
     
+    global $neededCredits;
+    $inLine = preg_replace( "/%NEEDED_CREDITS%/",
+                            $neededCredits, $inLine );    
+
+    
+    if( substr_count( $inLine, "%" ) == 0 ) {
+        // no vars left in this line
+        return $inLine;
+        }
+
+    global $tryPurchaseName;
+    $inLine = preg_replace( "/%TRY_PURCHASE_NAME%/",
+                            $tryPurchaseName, $inLine );    
+
+    
+    if( substr_count( $inLine, "%" ) == 0 ) {
+        // no vars left in this line
+        return $inLine;
+        }
+
     
     $user_id =  pn_mysqli_result( $result, 0, "id" );
 
