@@ -3954,6 +3954,14 @@ function pn_initiateCustomCreate( $email ) {
     // first prompt
     echo
     "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "Creating new custom matrix.";
+    echo "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "  (type 'exit' to cancel)";
+    echo "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "  (type 'undo' go back one step)";
+        
+    echo
+    "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
         "Enter new matrix name:";
     }
 
@@ -4062,15 +4070,43 @@ function pn_customCreate() {
         pn_standardResponseForPage( $email, "custom" );
         return;
         }
+
+    $forceRedo = false;
     
-    
-    if( $numParts == 1 ) {
+    if( "UNDO" ==
+        strtoupper( pn_requestFilter( "client_command",
+                                      "/[A-Z0-9 \-]+/i", "" ) ) ) {
+        if( $numParts > 1 ) {
+            pn_log( "undo before = $parts" );
+            
+            // strip off most recently added part
+            $parts = array_slice( $parts, 0, $numParts - 1 );
+            pn_log( "undo after = $parts" );
+            $carried_param = join( "\n", $parts );
+            $numParts -= 1;
+
+            $forceRedo = true;
+            }
+        else {
+            $promptText = "Enter new matrix name:";
+            $addNewPart = false;
+            }
+        }
+
+    if( ! $addNewPart ) {
+        // already decided not to add a new part, stop here
+        }
+    else if( $numParts == 1 ) {
         // matrix name
         $partToAdd =
             strtoupper( pn_requestFilter( "client_command",
                                           "/[A-Z0-9 \-]+/i", "" ) );
 
-        if( $partToAdd == "" ) {
+        if( $forceRedo ) {
+            $promptText = "Enter new matrix name:";
+            $addNewPart = false;
+            }
+        else if( $partToAdd == "" ) {
             $promptText = "  Invalid name.";
             $promptTextB = "Enter new matrix name:";
             $addNewPart = false;
@@ -4086,7 +4122,11 @@ function pn_customCreate() {
         // matrix cost
         $partToAdd = pn_requestFilter( "client_command", "/[0-9]+/i", "0" );
 
-        if( $partToAdd < 15 ) {
+        if( $forceRedo ) {
+            $promptText = "Enter matrix cost in credits:";
+            $addNewPart = false;
+            }
+        else if( $partToAdd < 15 ) {
             $promptText = "  Minumum cost is 15 Credits.";
             $promptTextB = "Enter matrix cost in credits:";
             $addNewPart = false;
@@ -4104,8 +4144,12 @@ function pn_customCreate() {
         $partToAdd = strtoupper(
             pn_requestFilter( "client_command", "/#[0-9A-F]{6}/i",
                               "" ) );
-
-        if( $partToAdd == "" ) {
+        
+        if( $forceRedo ) {
+            $promptText = "Enter matrix response color:";
+            $addNewPart = false;
+            }
+        else if( $partToAdd == "" ) {
             $promptText  = "  Bad color value.  Use hex, like:";
             $promptTextB = "  #FF8800";
             $promptTextC = "Enter matrix response color:";
@@ -4130,7 +4174,11 @@ function pn_customCreate() {
             pn_requestFilter( "client_command", "/#[0-9A-F]{6}/i",
                               "" ) );
 
-        if( $partToAdd == "" ) {
+        if( $forceRedo ) {
+            $promptText = "Enter human response color:";
+            $addNewPart = false;
+            }
+        else if( $partToAdd == "" ) {
             $promptText  = "  Bad color value.  Use hex, like:";
             $promptTextB = "  #FF8800";
             $promptTextC = "Enter human response color:";
@@ -4154,34 +4202,53 @@ function pn_customCreate() {
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9 \-]+/i", "Computer" );
 
-        $showTheirTextA = "  Matrix responses will start with:";
-        $showTheirTextB = "  $partToAdd:";
-        $showTheirTextBColor = $parts[3];
+        if( $forceRedo ) {
+            $promptText = "Enter matrix text response label:";
+            $addNewPart = false;
+            }
+        else {
+            $showTheirTextA = "  Matrix responses will start with:";
+            $showTheirTextB = "  $partToAdd:";
+            $showTheirTextBColor = $parts[3];
 
-        $promptText = "Enter intro paragraph:";
+            $promptText = "Enter intro paragraph:";
+            }
         }
     else if( $numParts == 6 ) {
         // intro paragraph
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9 .!?'\"$%()&\-,;+=:]+/i", "" );
-        $showTheirTextA = "  Intro paragraph for matrix:";
-        $showTheirTextB = "  $partToAdd";
 
-        $promptText = "Enter example utterance:";
+        if( $forceRedo ) {
+            $promptText = "Enter intro paragraph:";
+            $addNewPart = false;
+            }
+        else {
+            $showTheirTextA = "  Intro paragraph for matrix:";
+            $showTheirTextB = "  $partToAdd";
+            
+            $promptText = "Enter example utterance:";
+            }
         }
     else if( $numParts == 7 ) {
         // example utterance
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9 .!?'\"$%()&\-,;+=:]+/i", "" );
 
-        $showTheirTextA = "  Example utterance:";
-        $label = $parts[5];
-        
-        $showTheirTextB = "  $label: $partToAdd";
-        $showTheirTextBColor = $parts[3];
+        if( $forceRedo ) {
+            $promptText = "Enter example utterance:";
+            $addNewPart = false;
+            }
+        else {
+            $showTheirTextA = "  Example utterance:";
+            $label = $parts[5];
+            
+            $showTheirTextB = "  $label: $partToAdd";
+            $showTheirTextBColor = $parts[3];
 
-        $promptText = "Type \"confirm\" to construct matrix.";
-        $promptTextB = "Press ENTER to go back.";
+            $promptText = "Type \"confirm\" to construct matrix.";
+            $promptTextB = "Press ENTER to go back.";
+            }
         }
     else if( $numParts == 8 ) {
         // have everything we need to make AI page here
