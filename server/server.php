@@ -294,6 +294,7 @@ else if( preg_match( "/server\.php/", $_SERVER[ "SCRIPT_NAME" ] ) ) {
         pn_doesTableExist( $tableNamePrefix . "pages" ) &&
         pn_doesTableExist( $tableNamePrefix . "owned_ai" ) &&
         pn_doesTableExist( $tableNamePrefix . "conversation_logs" ) &&
+        pn_doesTableExist( $tableNamePrefix . "ledger" ) &&
         pn_doesTableExist( $tableNamePrefix . "log" );
     
         
@@ -625,6 +626,60 @@ function pn_setupDatabase() {
 
 
     
+    $tableName = $tableNamePrefix . "ledger";
+    if( ! pn_doesTableExist( $tableName ) ) {
+
+        $query =
+            "CREATE TABLE $tableName(" .
+            "id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT," .
+            "user_id INT NOT NULL, ".
+            "event_time DATETIME NOT NULL, ".
+            "credit_delta INT NOT NULL, ".
+            "ai_page_name VARCHAR(254) NOT NULL,".
+            "ai_creator_id INT NOT NULL, ".
+            "note TEXT NOT NULL,".
+            "index( user_id ), index( event_time ) );";
+
+        $result = pn_queryDatabase( $query );
+
+        echo "<B>$tableName</B> table created<BR>";
+        }
+    else {
+        echo "<B>$tableName</B> table already exists<BR>";
+        }
+
+
+    
+    }
+
+
+
+
+function pn_addToLedger( $email, $credit_delta, $ai_page_name, $note ) {
+    $user_id = pn_getUserID( $email );
+
+    $ai_creator_id = 0;
+
+    global $tableNamePrefix;
+    
+    if( $ai_page_name != "" ) {
+        
+        $result = pn_queryDatabase( "SELECT ai_creator_id ".
+                                    "FROM $tableNamePrefix"."pages ".
+                                    "WHERE name = '$ai_page_name';" );
+        if( mysqli_num_rows( $result ) > 0 ) {
+            $ai_creator_id = pn_mysqli_result( $result, 0, "ai_creator_id" );
+            }
+        }
+
+    $note = pn_mysqlEscape( $note );
+    
+    pn_queryDatabase( "INSERT INTO $tableNamePrefix"."ledger ".
+                      "SET user_id = $user_id, event_time = CURRENT_TIMESTAMP,".
+                      "credit_delta = $credit_delta, ".
+                      "ai_page_name = '$ai_page_name', ".
+                      "ai_creator_id = $ai_creator_id, ".
+                      "note = '$note';" );
     }
 
 
@@ -1136,6 +1191,7 @@ function pn_showData( $checkPassword = true ) {
     echo "<td>".orderLink( "fake_last_name", "Fake Last Name" )."</td>\n";
     echo "<td>".orderLink( "credits", "Computing Credits" )."</td>\n";
     echo "<td>".orderLink( "current_page", "Current Page" )."</td>\n";
+    echo "<td>".orderLink( "last_good_hash_time", "Last action" )."</td>\n";
     echo "</tr>\n";
 
 
@@ -1146,6 +1202,8 @@ function pn_showData( $checkPassword = true ) {
         $fake_last_name = pn_mysqli_result( $result, $i, "fake_last_name" );
         $credits = pn_mysqli_result( $result, $i, "credits" );
         $current_page = pn_mysqli_result( $result, $i, "current_page" );
+        $last_good_hash_time =
+            pn_mysqli_result( $result, $i, "last_good_hash_time" );
 
         $encodedEmail = urlencode( $email );
 
@@ -1160,6 +1218,7 @@ function pn_showData( $checkPassword = true ) {
         echo "<td>$fake_last_name</td>\n";
         echo "<td>$credits</td>\n";
         echo "<td>$current_page</td>\n";
+        echo "<td>$last_good_hash_time</td>\n";
         echo "</tr>\n";
         }
     echo "</table>";
@@ -1218,32 +1277,22 @@ function pn_showDetail( $checkPassword = true ) {
 
     // two possible params... id or email
 
-    $id = pn_requestFilter( "id", "/[0-9]+/i", -1 );
+    $user_id = pn_requestFilter( "id", "/[0-9]+/i", -1 );
     $email = "";
 
     
-    if( $id != -1 ) {
-        $query = "SELECT email ".
-            "FROM $tableNamePrefix"."users ".
-            "WHERE id = '$id';";
-        $result = pn_queryDatabase( $query );
-        
-        $email = pn_mysqli_result( $result, 0, "email" );
+    if( $user_id != -1 ) {
+        $email = pn_getEmail( $user_id );
         }
     else {
         $email = pn_getEmailParam();
     
-        $query = "SELECT id ".
-            "FROM $tableNamePrefix"."users ".
-            "WHERE email = '$email';";
-        $result = pn_queryDatabase( $query );
-        
-        $id = pn_mysqli_result( $result, 0, "id" );
+        $user_id = pn_getUserID( $email );
         }
     
     $query = "SELECT credits ".
             "FROM $tableNamePrefix"."users ".
-            "WHERE id = '$id';";
+            "WHERE id = '$user_id';";
     $result = pn_queryDatabase( $query );
     
     $credits = pn_mysqli_result( $result, 0, "credits" );
@@ -1251,7 +1300,7 @@ function pn_showDetail( $checkPassword = true ) {
     
     echo "<center><table border=0><tr><td>";
     
-    echo "<b>ID:</b> $id<br><br>";
+    echo "<b>ID:</b> $user_id<br><br>";
     echo "<b>Email:</b> $email<br><br>";
     echo "<b>Computing Credits:</b> $credits<br><br>";
     echo "</td></tr></table>";
@@ -1274,13 +1323,13 @@ function pn_showDetail( $checkPassword = true ) {
     if( pn_getUserConversationsLogged( $email ) ) {
         echo "Conversation logging is ON (turn ";
         echo "<a href='server.php?action=toggle_conversation_logging".
-            "&id=$id&set=0'>".
+            "&id=$user_id&set=0'>".
             "OFF</a>)";
         }
     else {
         echo "Conversation logging is OFF (turn ";
         echo "<a href='server.php?action=toggle_conversation_logging".
-            "&id=$id&set=1'>".
+            "&id=$user_id&set=1'>".
             "ON</a>)";
         }
 
@@ -1301,7 +1350,7 @@ function pn_showDetail( $checkPassword = true ) {
              "length( conversation_buffer ) as buff_len, ".
              "length( conversation_log ) as log_len ".
              "FROM $tableNamePrefix"."owned_ai ".
-             "WHERE user_id = '$id';";
+             "WHERE user_id = '$user_id';";
 
     $result = pn_queryDatabase( $query );
     
@@ -1325,9 +1374,10 @@ function pn_showDetail( $checkPassword = true ) {
         echo "<hr>";
         }
 
-    $query = "SELECT id, page_name, log_time, length( conversation ) as log_len ".
-             "FROM $tableNamePrefix"."conversation_logs ".
-             "WHERE email = '$email';";
+    $query = "SELECT id, page_name, log_time, ".
+        "length( conversation ) as log_len ".
+        "FROM $tableNamePrefix"."conversation_logs ".
+        "WHERE email = '$email';";
 
     $result = pn_queryDatabase( $query );
     
@@ -1342,9 +1392,56 @@ function pn_showDetail( $checkPassword = true ) {
             $time = pn_mysqli_result( $result, $i, "log_time" );
             $log_len = pn_mysqli_result( $result, $i, "log_len" );
             
-            echo "$time <a href='server.php?action=show_conversation&id=$id'>$page_name</a> ".
-                "($log_len)<br>";
+            echo "$time <a href='server.php?action=show_conversation&id=$id'>".
+                "$page_name</a> ($log_len)<br>";
             }
+        echo "<hr>";
+        }
+
+
+    $query = "SELECT event_time, ai_page_name, ".
+        "credit_delta, ai_creator_id, note ".
+        "FROM $tableNamePrefix"."ledger ".
+        "WHERE user_id = $user_id ORDER BY event_time desc;";
+
+    pn_log( $query );
+    
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        echo "Ledger:<br><br>";
+        echo "<table border=1 cellspacing=0 cellpadding=10>";
+        for( $i=0; $i<$numRows; $i++ ) {
+            $event_time = pn_mysqli_result( $result, $i, "event_time" );
+            $ai_page_name = pn_mysqli_result( $result, $i, "ai_page_name" );
+            $credit_delta = pn_mysqli_result( $result, $i, "credit_delta" );
+            $ai_creator_id = pn_mysqli_result( $result, $i, "ai_creator_id" );
+            $note = pn_mysqli_result( $result, $i, "note" );
+
+            if( $credit_delta > 0 ) {
+                $credit_delta = "+$credit_delta";
+                }
+            
+            echo "<tr>";
+            echo "<td>$event_time</td>";
+            echo "<td>$credit_delta</td>";
+            echo "<td>$ai_page_name</td>";
+
+            $creatorEmail = "";
+
+            if( $ai_creator_id > 0 ) {
+                $e = pn_getEmail( $ai_creator_id );
+                
+                $creatorEmail = "Creator: ".
+                    "<a href='server.php?action=show_detail&email=$e'>$e</a>";
+                }
+            echo "<td>$creatorEmail</td>";
+            echo "<td>$note</td>";
+            echo "</tr>";
+            }
+        echo "</table>";
         echo "<hr>";
         }
     }
@@ -1426,6 +1523,8 @@ function pn_addCredits() {
         $result = pn_queryDatabase( $query );
         
         echo "Added $add credits for $email<br>";
+
+        pn_addToLedger( $email, $add, "", "Admin added credits" );
         }
     
     pn_showDetail( false );
@@ -2677,6 +2776,10 @@ function pn_purchaseAI() {
             }
         else {
             pn_spendUserCredits( $email, $ai_cost );
+
+            pn_addToLedger( $email, - $ai_cost, $aiPageName,
+                            "User spun up AI" );
+            
             $user_id = pn_getUserID( $email );
 
             $query = "INSERT INTO $tableNamePrefix"."owned_ai ".
@@ -5006,6 +5109,9 @@ function pn_purchase() {
 
                 pn_log( "Adding $totalNewCredits credits for $email ".
                         "(payment source: $paymentSource)" );
+
+                pn_addToLedger( $email, $totalNewCredits, "",
+                                "Credit purchase through $paymentSource" );
                 }
 
 
