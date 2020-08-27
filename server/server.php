@@ -1676,7 +1676,7 @@ function pn_showPages() {
     
     global $tableNamePrefix;
 
-    echo "Exising pages:<br><br>";
+    echo "Existing pages:<br><br>";
 
     $whereClause = "WHERE ai_creator_id = 0";
 
@@ -1685,7 +1685,7 @@ function pn_showPages() {
         }
     
     
-    $query = "SELECT name, dest_names, ai_creator_deleted ".
+    $query = "SELECT name, dest_names, ai_name, ai_creator_deleted ".
         "FROM $tableNamePrefix"."pages ".
         "$whereClause;";
     $result = pn_queryDatabase( $query );
@@ -1702,16 +1702,22 @@ function pn_showPages() {
         $name = pn_mysqli_result( $result, $i, "name" );
 
         $deletedFlag = "";
-
+        $nameFlag = "";
+        
         $ai_creator_deleted =
             pn_mysqli_result( $result, $i, "ai_creator_deleted" );
+        $ai_name =
+            pn_mysqli_result( $result, $i, "ai_name" );
 
         if( $ai_creator_deleted ) {
             $deletedFlag = " [deleted]";
             }
+        if( $ai_name != "" ) {
+            $nameFlag = " ($ai_name)";
+            }
         
         echo "<a href='server.php?action=edit_page&name=$name'>$name</a>".
-            "$deletedFlag<br><br>";
+            "$nameFlag$deletedFlag<br><br>";
 
         pn_arrayRemoveByValue( $missingPages, $name );
 
