@@ -823,6 +823,9 @@ function pn_addUser() {
     
     if( $result ) {
         echo "User created with passwords <b>$pass_words</b>";
+        
+        pn_addToLedger( $email, $credits, "",
+                        "Initial purchase through $paymentSource" );       
         }
     else {
         echo "User creation failed (duplicate email?)";
@@ -5100,6 +5103,9 @@ function pn_purchase() {
                 pn_log( "Creating user account for $email with ".
                         "$totalNewCredits starting credits ".
                         "(payment source: $paymentSource)" );
+                
+                pn_addToLedger( $email, $totalNewCredits, "",
+                                "Initial purchase through $paymentSource" );
                 }
             else {
                 $query = "UPDATE $tableNamePrefix"."users ".
