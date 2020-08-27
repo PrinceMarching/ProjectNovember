@@ -4160,7 +4160,7 @@ function pn_customCreate() {
     else if( $numParts == 6 ) {
         // intro paragraph
         $partToAdd = pn_requestFilter( "client_command",
-                                       "/[A-Z0-9 .!?'\"$%()&\-,;+=]+/i", "" );
+                                       "/[A-Z0-9 .!?'\"$%()&\-,;+=:]+/i", "" );
         $showTheirTextA = "  Intro paragraph for matrix:";
         $showTheirTextB = "  $partToAdd";
 
@@ -4169,7 +4169,7 @@ function pn_customCreate() {
     else if( $numParts == 7 ) {
         // example utterance
         $partToAdd = pn_requestFilter( "client_command",
-                                       "/[A-Z0-9 .!?'\"$%()&\-,;+=]+/i", "" );
+                                       "/[A-Z0-9 .!?'\"$%()&\-,;+=:]+/i", "" );
 
         $showTheirTextA = "  Example utterance:";
         $label = $parts[5];
