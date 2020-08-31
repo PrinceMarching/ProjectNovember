@@ -825,7 +825,7 @@ function pn_addUser() {
         echo "User created with passwords <b>$pass_words</b>";
         
         pn_addToLedger( $email, $credits, "",
-                        "Initial purchase through $paymentSource" );       
+                        "Initial account created by admin." );       
         }
     else {
         echo "User creation failed (duplicate email?)";
