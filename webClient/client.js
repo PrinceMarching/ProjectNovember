@@ -620,7 +620,10 @@ function doKeyPress( e ) {
 		}
 		else if( passWords == "" ) {
 			// clean up extra spaces
-			passWords = lowerCommand.trim().split( /\s+/ ).join( " " );
+			// send passwords to server with NO spaces
+			// thus, if user enters them without any spaces, they will still
+			// work (server does the same, hashing them with no spaces)
+			passWords = lowerCommand.trim().split( /\s+/ ).join( "" );
 			startLoginA();
 		}
 		else if( lowerCommand == "export" ) {

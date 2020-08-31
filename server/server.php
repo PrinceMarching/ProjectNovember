@@ -4574,6 +4574,12 @@ function pn_checkClientSeqHash( $email ) {
 
     $pass_words = pn_getPassWordsForEmail( $email );
 
+    // hash pass-words without spaces
+    // client does the same
+    // this avoids confusion, if user enters pass-words with or without
+    // spaces, they will still work
+    $pass_words = join( "", preg_split( "/\s+/", $pass_words ) );
+    
     $computedHashValue =
         strtoupper( pn_hmac_sha1( $pass_words, $sequence_number ) );
 
