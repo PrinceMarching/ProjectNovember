@@ -4047,6 +4047,19 @@ function pn_customCreate() {
         return;
         }
 
+
+    // make sure that the context content (intro paragraph, utterance)
+    // leave room in the buffer for conversation to be appended.
+    global $aiBufferLimit;
+
+    $contextLengthMax = $aiBufferLimit / 2;
+
+    $contextPartLengthMax = $contextLengthMax / 2;
+    
+    $labelMaxLen = 40;
+        
+
+    
     $parts = preg_split( "/\n/", $carried_param );
 
 
@@ -4212,6 +4225,12 @@ function pn_customCreate() {
             $promptText = "Enter matrix text response label:";
             $addNewPart = false;
             }
+        else if( strlen( $partToAdd ) > $labelMaxLen ) {
+            $promptText = "  Label can't be longer than ".
+                "$labelMaxLen characters.";
+            $promptTextB = "Enter matrix text response label:";
+            $addNewPart = false;
+            }
         else {
             $showTheirTextA = "  Matrix responses will start with:";
             $showTheirTextB = "  $partToAdd:";
@@ -4229,6 +4248,12 @@ function pn_customCreate() {
             $promptText = "Enter intro paragraph:";
             $addNewPart = false;
             }
+        else if( strlen( $partToAdd ) > $contextPartLengthMax ) {
+            $promptText = "  Paragraph can't be longer than ".
+                "$contextPartLengthMax characters.";
+            $promptTextB = "Enter intro paragraph:";
+            $addNewPart = false;
+            }
         else {
             $showTheirTextA = "  Intro paragraph for matrix:";
             $showTheirTextB = "  $partToAdd";
@@ -4243,6 +4268,12 @@ function pn_customCreate() {
 
         if( $forceRedo ) {
             $promptText = "Enter example utterance:";
+            $addNewPart = false;
+            }
+        else if( strlen( $partToAdd ) > $contextPartLengthMax ) {
+            $promptText = "  Utterance can't be longer than ".
+                "$contextPartLengthMax characters.";
+            $promptTextB = "Enter example utterance:";
             $addNewPart = false;
             }
         else {
