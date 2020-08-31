@@ -4137,7 +4137,8 @@ function pn_customCreate() {
             $showTheirTextA = "  Matrix will be called:";
             $showTheirTextB = "  $partToAdd";
             
-            $promptText = "Enter matrix cost in Credits:";
+            $promptText = "  Higher cost matrices live longer.";
+            $promptTextB = "Enter matrix cost in Credits:";
             }
         }
     else if( $numParts == 2 ) {
