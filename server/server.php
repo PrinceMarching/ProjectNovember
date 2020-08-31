@@ -3639,6 +3639,8 @@ function pn_getAICompletion( $prompt, $ai_protocol,
         // debug printout
         //echo "<pre>chat plain:\n$prompt\n($promptLen long)\nURL $url\npost body=\n$postBody\nresult = $result</pre>";
 
+        // pn_log( "chat plain:\n'$prompt'\n($promptLen long)\nURL $url\npost body=\n$postBody\nresult = $result" );
+
         if( $result === FALSE ) {
             return "FAILED";
             }
@@ -3719,7 +3721,8 @@ function pn_addToConversationBuffer( $aiOwnedID, $inText, $inLog = true ) {
         // trim head off buffer, and stick display_text (initial prompt)
         // on there, to maintain some consistency over the long term
         $newBuffer = substr( $newBuffer,
-                             -( 1000 - ( strlen( $display_text ) + 10 ) ) );
+                             -( $aiBufferLimit -
+                                ( strlen( $display_text ) + 10 ) ) );
 
         // further trim so it starts with blank line, if possible
         // this will prevent conversational discontinuity between
