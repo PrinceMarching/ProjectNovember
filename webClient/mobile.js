@@ -111,13 +111,6 @@ function mobileTextSubmit( e ) {
 
 
 
-function setTextInMobileInputField( inText ) {
-	var a = document.getElementById( "hiddenInput" );
-	a.value = inText;
-}
-
-
-
 // text, email, number
 function setMobileInputType( inType ) {
 	if( !onMobile ) {

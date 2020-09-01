@@ -1217,9 +1217,6 @@ function parseStandardResponse( inResponse ) {
 		if( responseEnterOnly ) {
 			// leave numerical keyboard in place
 			setMobileInputType( "number" );
-			// put text in there so that when they hit ENTER
-			// field will register a change event
-			setTextInMobileInputField( "0" );
 		}
 		else if( responseNumeric ) {
 			setMobileInputType( "number" );
