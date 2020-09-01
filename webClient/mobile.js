@@ -28,28 +28,26 @@ function setupMobileTextInput() {
 		
 		var x = canvas.offsetLeft;
 		var y = canvas.offsetTop;
-		//x -= canvas.width / 2;
-		//y -= canvas.height / 2;
 		x += 5;
-		y += 5
+		// place in bottom 1/6 of canvas
+		// if text field fills entire canvas space, then iOS
+		// focuses into the middle in a very strange way
+		y += 5 * canvas.height / 6;
 		d.style.position = "absolute";
 		d.style.left = x+'px';
 		d.style.top = y+'px';
-		//d.style.left = 10;
-		//d.style.top = 10;
 		
 		if( !fieldPresent ) {
 			d.innerHTML = 
 				"<input id='hiddenInput' type='text' name='hiddenInput'>";
-
-			//a.style.visibility = 'hidden';
 			}
 		var a = document.getElementById( "hiddenInput" );
 
-		var c = 'red';
+		var c = 'black';
 
 		a.style.width=canvas.width - 10;
-		a.style.height=canvas.height - 10;
+		// place in bottom 1/6 of canvas, so iOS focuses in right spot
+		a.style.height=canvas.height / 6 - 10;
 		a.style.color= c;
 		a.style.backgroundColor= c;
 		a.style.borderColor= c;
@@ -57,6 +55,9 @@ function setupMobileTextInput() {
 		a.style.borderStyle= 'solid';
 		a.style.resize = 'none';
 		a.style.caretColor = 'transparent';
+
+		// larger font causes iOS to zoom in on a larger area
+		a.style.fontSize = "30pt";
 
 		canvas.addEventListener( "click", canvasMobileClick );
 		fieldPresent = true;
@@ -67,10 +68,8 @@ function setupMobileTextInput() {
 
 function canvasMobileClick() {
 	var a = document.getElementById( "hiddenInput" );
-	//a.style.visibility = 'visible';
 	a.value = "";
 	a.focus();
-	//a.style.visibility = 'hidden';
 	a.addEventListener( "input", mobileTextInput );
 	a.addEventListener( "keypress", mobileTextInput );
 	a.addEventListener( "change", mobileTextSubmit );
