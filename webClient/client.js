@@ -630,6 +630,13 @@ function doKeyPress( e ) {
 		if( email == "" ) {
 			// still need to collect email for login
 			email = lowerCommand;
+			if( onIOS ) {
+				// hide the keyboard once to allow the input type
+				// to change on iOS
+				// on Android, it seems to change automatically when the
+				// input type changes
+				hideMobileKeyboard();
+				}
 			getPassWordsPrompt();
 		}
 		else if( passWords == "" ) {
@@ -1094,7 +1101,9 @@ function getIntroText() {
 function getEmailPrompt() {
 	hidePrompt = true;
 	getServerActionAndAddLines( "get_email_prompt", readyForEmail );
-	setMobileInputType( "email" );
+	// force this one on iOS, because we are going to de-focus
+	// the field afterward to allow an input type change
+	setMobileInputType( "email", onIOS );
 }
 
 

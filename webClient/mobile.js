@@ -1,7 +1,6 @@
 // from this answer here:
 // https://stackoverflow.com/questions/11381673/detecting-a-mobile-browser
 function isOnMobile() {
-	return true;
 	if( navigator.userAgent.match(/Android/i) 
         || navigator.userAgent.match(/webOS/i) 
         || navigator.userAgent.match(/iPhone/i)  
@@ -17,13 +16,31 @@ function isOnMobile() {
 }
 
 
+function isOnIOS() {
+	if( navigator.userAgent.match(/iPhone/i)  
+        || navigator.userAgent.match(/iPad/i)  
+        || navigator.userAgent.match(/iPod/i) ) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+
 var fieldPresent = false;
 var onMobile = false;
+var onIOS = false;
+
 
 function setupMobileTextInput() {
-	if( isOnMobile() ) {
+	if( onMobile || isOnMobile() ) {
 		onMobile = true;
 		
+		if( onIOS || isOnIOS() ) {
+			onIOS = true;
+			}
+
 		var d = document.getElementById('content');
 		
 		var x = canvas.offsetLeft;
@@ -66,7 +83,12 @@ function setupMobileTextInput() {
 
 
 
+var someInputSeen = false;
+
 function canvasMobileClick() {
+	// watch out for change event on iOS when field comes into focus
+	someInputSeen = false;
+
 	var a = document.getElementById( "hiddenInput" );
 	a.value = "";
 	a.focus();
@@ -82,12 +104,18 @@ var inputCount = 0;
 function mobileTextInput( e ) {
 	if( responseEnterOnly ) {
 		// any input on mobile good enough when we're waiting for ENTER key
+		someInputSeen = true;
 		mobileTextSubmit( e );
 		return;
 	}
 
 	liveTypedCommand = e.target.value;
 	liveTypedCursorOffset = liveTypedCommand.length;
+
+	if( liveTypedCommand.length > 0 ) {
+		someInputSeen = true;
+		}
+
 	resetCursorFlash();
 	redrawNow();
 	
@@ -98,6 +126,9 @@ function mobileTextInput( e ) {
 
 
 function mobileTextSubmit( e ) {
+	if( ! someInputSeen ) {
+		return;
+	}
 	e.keyCode = 13;
 	doKeyPress( e );
 	var a = document.getElementById( "hiddenInput" );
@@ -112,13 +143,30 @@ function mobileTextSubmit( e ) {
 
 
 // text, email, number
-function setMobileInputType( inType ) {
+// force to override iOS work-around
+function setMobileInputType( inType, inForce = false ) {
 	if( !onMobile ) {
 		return;
 	}
+
+	if( onIOS && ! inForce ) {
+		// iOS screen keyboard won't switch keyboard type
+		// when focused field switches type
+		// force all to be "text" to avoid getting stuck on a special-purpose
+		// keyboard
+		inType = "text";
+		}
 	
 	var a = document.getElementById( "hiddenInput" );
 
 	a.type = inType;
 	
 }
+
+
+
+function hideMobileKeyboard() {
+	var a = document.getElementById( "hiddenInput" );
+	a.value = "";
+	a.blur();
+	}
