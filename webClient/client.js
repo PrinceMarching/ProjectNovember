@@ -44,6 +44,7 @@ function reportWindowSize() {
 
 	resetCursorFlash();
 	redrawNow();
+	setupMobileTextInput();
 }
 
 
@@ -57,7 +58,18 @@ reportWindowSize();
 
 document.body.appendChild(canvas);
 
-canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px; margin: auto; border:0px";
+if( isOnMobile() ) {
+	// on mobile, put terminal at top of screen
+	canvas.style = "position: absolute; top: 10px; left: 0px; right: 0px; bottom: 0px; margin-left: auto; margin-right: auto; border:0px";
+
+	}
+else {
+	// on web browsers, center terminal in window
+	canvas.style = "position: absolute; top: 0px; left: 0px; right: 0px; bottom: 0px; margin: auto; border:0px";
+}
+
+
+setupMobileTextInput();
 
 
 var scanLinesLoaded = false;
@@ -367,10 +379,12 @@ function timedRedraw( inMSFromNow ) {
 
 
 redrawNow();
-window.addEventListener( "keypress", doKeyPress, false );
-window.addEventListener( "keydown", doKeyDown, false );
-window.addEventListener( "wheel", doWheel, false );
 
+if( ! onMobile ) {
+	window.addEventListener( "keypress", doKeyPress, false );
+	window.addEventListener( "keydown", doKeyDown, false );
+	window.addEventListener( "wheel", doWheel, false );
+}
 
 
 // kick things off by fetching intro text from server
@@ -1005,6 +1019,20 @@ function stripCurly( inString ) {
 }
 
 
+var responseNumeric = false;
+var responseEnterOnly = false;
+
+function testLineForResponseType( inLine ) {
+	var trimLine = inLine.trim();
+	if( trimLine.startsWith( "1." ) ) {
+		responseNumeric = true;
+	}
+	else if( trimLine.startsWith( "Press ENTER to" ) ) {
+		responseEnterOnly = true;
+	}
+}
+
+
 // includes prompt color and text lines
 function addResponseLines( inResponseLines ) {
 	let lines = inResponseLines.split( "\n" );
@@ -1033,6 +1061,10 @@ function addResponseLines( inResponseLines ) {
 				
 				// now join remainder as text of line
 				let text = lineWords.join( " " );
+
+				if( onMobile && ! responseNumeric && ! responseEnterOnly ) {
+					testLineForResponseType( text );
+				}
 				addLineToBuffer( text, color, ms, 
 								 corruptionFract, corruptionSkip );
 			}
@@ -1062,12 +1094,14 @@ function getIntroText() {
 function getEmailPrompt() {
 	hidePrompt = true;
 	getServerActionAndAddLines( "get_email_prompt", readyForEmail );
+	setMobileInputType( "email" );
 }
 
 
 function getPassWordsPrompt() {
 	hidePrompt = true;
 	getServerActionAndAddLines( "get_pass_words_prompt", readyForPassWords );
+	setMobileInputType( "text" );
 }
 
 
@@ -1171,8 +1205,30 @@ function parseStandardResponse( inResponse ) {
 	parts.shift();
 	parts.shift();
 
+
+	responseNumeric = false;
+	responseEnterOnly = false;
+
 	let lines = parts.join( "\n" );
 	addResponseLines( lines );
+
+
+	if( onMobile ) {
+		if( responseEnterOnly ) {
+			// leave numerical keyboard in place
+			setMobileInputType( "number" );
+			// put text in there so that when they hit ENTER
+			// field will register a change event
+			setTextInMobileInputField( "0" );
+		}
+		else if( responseNumeric ) {
+			setMobileInputType( "number" );
+		}
+		else {
+			setMobileInputType( "text" );
+		}
+	}
+
 
 	unhidePrompt();
 }
