@@ -191,7 +191,43 @@ function mobileTextInput( e ) {
 		return;
 	}
 
-	liveTypedCommand = e.target.value;
+
+	// filter input string taken from text field
+	// on iOS, "smart quotes" insert non-ascii characters for quote marks
+	// replace them with the ascii version
+	// and filter out other non-ascii characters completely
+	let val = e.target.value;
+	
+	let valArray = Array.from( val );
+
+	let validValArray = [];
+
+	valArray.forEach(
+		function( c ) {
+			let codePoint = c.codePointAt( 0 ); 
+			
+			if( codePoint >= 32 &&
+				codePoint <= 126 ) {
+				// ascii range
+				validValArray.push( c );
+			}
+			// special cases
+			// angled single quotes get replaced with apostrophe
+			else if( codePoint == 8216 || codePoint == 8217 ) {
+				validValArray.push( "'" );
+			}
+			// angled double quotes get replaced with "
+			else if( codePoint == 8220 || codePoint == 8221 ) {
+				validValArray.push( '"' );
+			}
+		} 
+	);
+
+	
+	val = validValArray.join( "" );
+	
+
+	liveTypedCommand = val;
 	liveTypedCursorOffset = liveTypedCommand.length;
 
 	if( liveTypedCommand.length > 0 ) {
