@@ -1045,6 +1045,9 @@ function testLineForResponseType( inLine ) {
 	if( trimLine.startsWith( "1." ) ) {
 		responseNumeric = true;
 	}
+	else if( trimLine.startsWith( "INVALID SELECTION" ) ) {
+		responseNumeric = true;
+	}
 	else if( trimLine.startsWith( "Press ENTER to" ) ) {
 		responseEnterOnly = true;
 	}
@@ -1235,8 +1238,8 @@ function parseStandardResponse( inResponse ) {
 
 	if( onMobile ) {
 		if( responseEnterOnly ) {
-			// leave numerical keyboard in place
-			setMobileInputType( "number" );
+			// leave whatever keyboard was last in place
+			// they all have ENTER keys
 		}
 		else if( responseNumeric ) {
 			setMobileInputType( "number" );
