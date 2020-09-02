@@ -21,6 +21,11 @@
 <br>
 <noscript>Please enable JavaScript<br><br></noscript>
 
+<font size=4>Talk to the world's most advanced artificial intelligence.</font>
+<br>
+<br>
+
+
 <font size=5>PROJECT DECEMBER is availble now for $5.00</font>
 <br>
 <br>
