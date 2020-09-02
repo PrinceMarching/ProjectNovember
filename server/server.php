@@ -2558,7 +2558,7 @@ function pn_getPromptColorForPage( $inPageName ) {
 
 
 
-function pn_standardHeaderForPage( $inPageName, $inOpenUrl = "" ) {
+function pn_standardHeaderForPage( $inPageName, $inOpenUrl = "", $inClear=true ) {
 
     // next action
     echo "page\n";
@@ -2576,9 +2576,16 @@ function pn_standardHeaderForPage( $inPageName, $inOpenUrl = "" ) {
     
     // use prompt color for what user types being added to bottom
     echo "$prompt_color\n";
+
+    if( $inClear) {
+        // do clear
+        echo "1\n";
+        }
+    else {
+        // don't clear
+        echo "0\n";
+        }
     
-    // don't clear
-    echo "1\n";
 
     }
 
@@ -2593,7 +2600,8 @@ function pn_standardResponseForPage( $email, $inPageName ) {
 
 function pn_standardBadChoiceForPage( $inPageName,
                                       $inMessage = "INVALID SELECTION" ) {
-    pn_standardHeaderForPage( $inPageName );
+    // don't clear
+    pn_standardHeaderForPage( $inPageName, "", false );
 
     $prompt_color = pn_getPromptColorForPage( $inPageName );
     
@@ -2685,7 +2693,7 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
                 
             
             $pageText = $pageText . "Type \"confirm\" to execute spin.\n\n";
-            $pageText = $pageText . "Press ENTER to go back.\n";
+            $pageText = $pageText . "Type \"exit\" to cancel.\n";
             }
         }
     else {
@@ -2868,7 +2876,7 @@ function pn_showDeleteConfirmation( $email, $deletePageName ) {
         $pageText = $pageText . "About to delete:  $ai_name\n";
             
         $pageText = $pageText . "Type \"confirm\" to execute.\n\n";
-        $pageText = $pageText . "Press ENTER to go back.\n";
+        $pageText = $pageText . "Type \"exit\" to go cancel.\n";
         }
     else {
         pn_showErrorPage( $email, "Matrix not found." );
@@ -4288,7 +4296,7 @@ function pn_customCreate() {
             $showTheirTextBColor = $parts[3];
 
             $promptText = "Type \"confirm\" to construct matrix.";
-            $promptTextB = "Press ENTER to go back.";
+            $promptTextB = "Type \"exit\" to go cancel.";
             }
         }
     else if( $numParts == 8 ) {
