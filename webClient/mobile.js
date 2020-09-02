@@ -227,6 +227,8 @@ function mobileTextSubmit( e ) {
 
 
 
+var lastInputType = "email";
+
 // text, email, number
 // force to override iOS work-around
 function setMobileInputType( inType, inForce = false ) {
@@ -234,7 +236,7 @@ function setMobileInputType( inType, inForce = false ) {
 		return;
 	}
 
-	if( onIOS && ! inForce ) {
+	if( false && onIOS && ! inForce ) {
 		// iOS screen keyboard won't switch keyboard type
 		// when focused field switches type
 		// force all to be "text" to avoid getting stuck on a special-purpose
@@ -245,7 +247,15 @@ function setMobileInputType( inType, inForce = false ) {
 	var a = document.getElementById( "hiddenInput" );
 
 	a.type = inType;
+
+	if( onIOS && lastInputType != inType ) {
+		// changing type on iOS
+		// de-focus field to hide keyboard
+		// different keyboard shown when user clicks to re-focus
+		a.blur();
+		}
 	
+	lastInputType = inType;
 }
 
 
