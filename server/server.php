@@ -2578,7 +2578,7 @@ function pn_standardHeaderForPage( $inPageName, $inOpenUrl = "" ) {
     echo "$prompt_color\n";
     
     // don't clear
-    echo "0\n";
+    echo "1\n";
 
     }
 
