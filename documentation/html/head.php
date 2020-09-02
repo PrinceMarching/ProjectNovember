@@ -1,4 +1,5 @@
 <html>
+<title>Project Deceber</title>
 
 <style>
 @font-face {
@@ -11,7 +12,7 @@ src: url("texgyreadventor-regular.otf") format("opentype");
 
 
 <center>
-<a href="https://projectdecember.net/buy.php">buy</a> --|-- <a href="samples.php">samples</a> --|-- <a href="http://projectdecember.net/terminal/">terminal</a> --|-- made by <a href="http://hcsoftware.sourceforge.net/jason-rohrer/">Jason Rohrer</a>
+<a href="https://projectdecember.net/buy.php">buy</a> --|-- <a href="samples.php">samples</a> --|-- <a href="http://projectdecember.net/terminal/">terminal</a> --|--   <a href="https://www.reddit.com/r/ProjectDecember1982">discuss</a> --|-- made by <a href="http://hcsoftware.sourceforge.net/jason-rohrer/">Jason Rohrer</a>
 </center>
 
 <br>

@@ -5,14 +5,14 @@
 
 
 
-<img src="logo.jpg" width=822 height=1060 border=0>
+<a href="https://projectdecember.net/buy.php"><img src="logo.jpg" width=822 height=1060 border=0></a>
 
 <br>
 <br>
 <br>
 <br>
 
-<a href="samples.php">samples</a> --|-- <a href="http://projectdecember.net/terminal/">terminal</a> --|-- made by <a href="http://hcsoftware.sourceforge.net/jason-rohrer/">Jason Rohrer</a>
+<a href="https://projectdecember.net/buy.php">buy</a> --|-- <a href="samples.php">samples</a> --|-- <a href="http://projectdecember.net/terminal/">terminal</a> --|-- <a href="https://www.reddit.com/r/ProjectDecember1982">discuss</a> --|-- made by <a href="http://hcsoftware.sourceforge.net/jason-rohrer/">Jason Rohrer</a>
 
 <br>
 <br>
