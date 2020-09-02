@@ -2668,10 +2668,10 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
             // use prompt color for what user types being added to bottom
             echo "$prompt_color\n";
             
-            // don't clear
-            echo "0\n";
+            // do clear
+            echo "1\n";
             
-            $pageText = "\n\n       CONFIRM OPERATION\n\n";            
+            $pageText = "\n\n        CONFIRM OPERATION\n\n";            
             
             $pageText = $pageText . "About to spin up:  $ai_name\n";
             $pageText = $pageText . "Spin will spend:   $ai_cost credits\n";
@@ -2692,8 +2692,8 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
             
                 
             
-            $pageText = $pageText . "Type \"confirm\" to execute spin.\n\n";
-            $pageText = $pageText . "Type \"exit\" to cancel.\n";
+            $pageText = $pageText . "Type \"confirm\" to execute spin.\n";
+            $pageText = $pageText . "Type \"exit\" to cancel.";
             }
         }
     else {
@@ -2865,18 +2865,18 @@ function pn_showDeleteConfirmation( $email, $deletePageName ) {
         // use prompt color for what user types being added to bottom
         echo "$prompt_color\n";
         
-        // don't clear
-        echo "0\n";
+        // do clear
+        echo "1\n";
             
-        $pageText = "\n\n       CONFIRM OPERATION\n\n";
+        $pageText = "\n\n        CONFIRM OPERATION\n\n";
         
         $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
             
             
         $pageText = $pageText . "About to delete:  $ai_name\n";
             
-        $pageText = $pageText . "Type \"confirm\" to execute.\n\n";
-        $pageText = $pageText . "Type \"exit\" to go cancel.\n";
+        $pageText = $pageText . "Type \"confirm\" to execute.\n";
+        $pageText = $pageText . "Type \"exit\" to cancel.";
         }
     else {
         pn_showErrorPage( $email, "Matrix not found." );
@@ -4296,7 +4296,7 @@ function pn_customCreate() {
             $showTheirTextBColor = $parts[3];
 
             $promptText = "Type \"confirm\" to construct matrix.";
-            $promptTextB = "Type \"exit\" to go cancel.";
+            $promptTextB = "Type \"exit\" to cancel.";
             }
         }
     else if( $numParts == 8 ) {
