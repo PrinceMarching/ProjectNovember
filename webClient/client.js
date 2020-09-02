@@ -420,6 +420,11 @@ var email = "";
 var passWords = "";
 
 
+function getVisibleLines() {
+	return canvas.height / fontSpacingV - 2;
+	}
+
+
 
 function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 	inCTX.fillStyle = '#000';
@@ -527,6 +532,12 @@ function drawFrameContents( inCTX, inCanvas, inIsExport ) {
 				// keep scroll position locked as more text is added
 				// so what user is looking at remains stable.
 				scrollUp ++;
+			}
+			if( lineBuffer.length > getVisibleLines() + 1 ) {
+				showMobileButtons();
+				}
+			else {
+				hideMobileButtons();
 			}
 		}
 		else {
@@ -761,8 +772,8 @@ function capScrollUp() {
 	}
 	else {
 		// allow one blank line at very top.
-		visibleLines = canvas.height / fontSpacingV - 2;
-
+		visibleLines = getVisibleLines();
+		
 		commandLines = splitCommandLines( canvas );
 		
 		numCommandLines = commandLines.length;
@@ -828,7 +839,7 @@ function doKeyDown( e ) {
 		   e.keyCode == 33 ) {
 		
 		// allow one blank line at very top.
-		visibleLines = canvas.height / fontSpacingV - 2;
+		visibleLines = getVisibleLines();
 		
 
 		if( e.keyCode == 38 ) {
@@ -850,7 +861,7 @@ function doKeyDown( e ) {
 		}
 		else {
 			// allow one blank line at very top.
-			visibleLines = canvas.height / fontSpacingV - 2;
+			visibleLines = getVisibleLines();
 			scrollUp -= visibleLines;
 		}
 		

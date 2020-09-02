@@ -83,6 +83,86 @@ function setupMobileTextInput() {
 
 
 
+var buttonsShowing = false;
+
+function showMobileButtons() {
+	if( !onMobile ) {
+		return;
+	}
+	var b = document.getElementById( 'mobileButtons' );
+	b.style.position = 'absolute';
+	b.style.left = canvas.offsetLeft + canvas.width + 5;
+	b.style.top = canvas.offsetTop;
+	b.height = canvas.height;
+		
+	if( !buttonsShowing ) {
+		b.innerHTML = "<table border=0 "+
+			"cellspacing=0 cellpadding=0 height=100%>" +
+			"<tr><td id='tb1'><button id='b1'>&#8607;</button></td></tr>" +
+			"<tr><td id='tb2'><button id='b2'>&#8593;</button></td></tr>" +
+			"<tr><td id='tb3'><button id='b3'>&#8595;</button></td></tr>" +
+			"<tr><td id='tb4'><button id='b4'>&#8609;</button></td></tr>" +
+			"</table>";
+	}
+
+	for( var i =1; i<=4; i++ ) {
+		let idT = "tb" + i;
+		let idB = "b" + i;
+		let t = document.getElementById( idT );
+		t.height = canvas.height / 4;
+		
+		let tb = document.getElementById( idB );
+		tb.style.height = canvas.height / 4 - 5;
+		tb.style.width = canvas.width / 16;
+		tb.style.fontSize = "20pt";
+		
+		tb.addEventListener( "click", mobileButtonClick );
+		
+	}
+	buttonsShowing = true;
+}
+
+
+
+function mobileButtonClick( e ) {
+	var visibleLines = getVisibleLines();
+	
+	if( e.srcElement.id == 'b1' ) {
+		// page up
+		scrollUp += visibleLines;
+	}
+	else if( e.srcElement.id == 'b2' ) {
+		// up
+		scrollUp += 1;
+	}
+	else if( e.srcElement.id == 'b3' ) {
+		// down
+		scrollUp -= 1;
+	}
+	else if( e.srcElement.id == 'b4' ) {
+		// page down
+		scrollUp -= visibleLines;
+	}
+	capScrollUp();
+	redrawNow();
+}
+
+
+
+function hideMobileButtons() {
+	if( !onMobile ) {
+		return;
+	}	
+	if( buttonsShowing ) {
+		var b = document.getElementById( 'mobileButtons' );
+		b.innerHTML = "";
+	}
+	buttonsShowing = false;
+}
+
+
+
+
 var someInputSeen = false;
 
 function canvasMobileClick() {
@@ -96,6 +176,8 @@ function canvasMobileClick() {
 	a.addEventListener( "keypress", mobileTextInput );
 	a.addEventListener( "change", mobileTextSubmit );
 	console.log( "FOCUSED" );
+	// jump right back to bottom
+	scrollUp = 0;
 }
 
 
