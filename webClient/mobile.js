@@ -114,6 +114,9 @@ function mobileTextInput( e ) {
 
 	if( liveTypedCommand.length > 0 ) {
 		someInputSeen = true;
+		
+		// jump back to bottom if they have been scrolling
+		scrollUp = 0;
 		}
 
 	resetCursorFlash();
