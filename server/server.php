@@ -476,14 +476,17 @@ function pn_setupDatabase() {
 
             while( !feof( $file ) ) {
                 $last_name = trim( fgets( $file) );
-                
-                if( ! $firstLine ) {
-                    $query = $query . ",";
+
+                if( $last_name != "" ) {
+                    
+                    if( ! $firstLine ) {
+                        $query = $query . ",";
+                        }
+                    
+                    $query = $query . " ( '$last_name' )";
+                    
+                    $firstLine = false;
                     }
-                
-                $query = $query . " ( '$last_name' )";
-            
-                $firstLine = false;
                 }
             
             fclose( $file );
