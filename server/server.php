@@ -1407,8 +1407,6 @@ function pn_showDetail( $checkPassword = true ) {
         "FROM $tableNamePrefix"."ledger ".
         "WHERE user_id = $user_id ORDER BY event_time desc;";
 
-    pn_log( $query );
-    
     $result = pn_queryDatabase( $query );
     
     $numRows = mysqli_num_rows( $result );
