@@ -2592,8 +2592,8 @@ function pn_standardHeaderForPage( $inPageName, $inOpenUrl = "", $inClear=true )
 
 
 
-function pn_standardResponseForPage( $email, $inPageName ) {
-    pn_standardHeaderForPage( $inPageName );
+function pn_standardResponseForPage( $email, $inPageName, $inClear=true ) {
+    pn_standardHeaderForPage( $inPageName, "", $inClear );
     pn_echoPageText( $email, $inPageName );
     }
 
@@ -3246,8 +3246,9 @@ function pn_talkAI() {
         pn_purgeDeletedCustom();
         
         sleep( 3 );
-        
-        pn_standardResponseForPage( $email, "matrix_dead" );
+
+        // DO NOT clear, let them see entire conversation.
+        pn_standardResponseForPage( $email, "matrix_dead", false );
         return;
         }
 
