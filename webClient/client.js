@@ -427,6 +427,7 @@ function getVisibleLines() {
 
 
 function drawFrameContents( inCTX, inCanvas, inIsExport ) {
+	inCTX.imageSmoothingEnabled = false;
 	inCTX.fillStyle = '#000';
 	inCTX.fillRect( 0, 0, inCanvas.width, inCanvas.height );
 
