@@ -8,32 +8,24 @@ var baseH = 480;
 
 var drawScale = 1;
 
+// user can manually scale down from full screen
+var reduceZoom = 0;
+var zoomToggleDir = 1;
 
 var fontSpacingH = baseFontSpacingH * drawScale;
 var fontSpacingV = baseFontSpacingV * drawScale;
 
 
 function reportWindowSize() {
-	baseAspect = baseW / baseH;
-	windowAspect = window.innerWidth / window.innerHeight;
 	
-	if( windowAspect >= baseAspect ) {
-		// empty bars on sides	
-		drawScale = window.innerHeight / baseH;
+	drawScale = getMaxDrawScale();
+
+	if( drawScale > 1 &&
+		reduceZoom > 0 ) {
+		drawScale -=  reduceZoom;
+		if( drawScale < 1 ) {
+			drawScale = 1;
 		}
-	else {
-		// empty bars on top/bottom
-		drawScale = window.innerWidth / baseW;
-	}
-	
-		// whole multiples, to avoid weird aliasing
-	if( drawScale > 1 ) {
-		drawScale = Math.floor( drawScale );
-	}
-	else {
-		// whole divisions 1/2, 1/3, 1/4, etc.
-		invDrawScale = Math.ceil( 1 / drawScale );
-		drawScale = 1 / invDrawScale;
 	}
 	
 	canvas.height = baseH * drawScale;
@@ -46,6 +38,34 @@ function reportWindowSize() {
 	setupMobileTextInput();
 }
 
+
+
+function getMaxDrawScale() {
+	let d = 1;
+	
+	baseAspect = baseW / baseH;
+	windowAspect = window.innerWidth / window.innerHeight;
+	
+	if( windowAspect >= baseAspect ) {
+		// empty bars on sides	
+		d = window.innerHeight / baseH;
+		}
+	else {
+		// empty bars on top/bottom
+		d = window.innerWidth / baseW;
+	}
+	
+		// whole multiples, to avoid weird aliasing
+	if( d > 1 ) {
+		d = Math.floor( d );
+	}
+	else {
+		// whole divisions 1/2, 1/3, 1/4, etc.
+		invDrawScale = Math.ceil( 1 / d );
+		d = 1 / invDrawScale;
+	}
+	return d;
+}
 
 
 function setFontSpacing( inDrawScale ) {
@@ -670,6 +690,22 @@ function doKeyPress( e ) {
 		}
 		else if( lowerCommand == "clear" ) {
 			clearLineBuffers();
+		}
+		else if( lowerCommand == "zoom" ) {
+			let maxScale = getMaxDrawScale();
+			if( maxScale > 1 ) {
+				reduceZoom += zoomToggleDir;
+				if( reduceZoom < 0 ) {
+					reduceZoom = 1;
+					zoomToggleDir = - zoomToggleDir;
+				}
+				else if( reduceZoom > maxScale - 1 ) {
+					reduceZoom = maxScale - 2;
+					zoomToggleDir = - zoomToggleDir;
+				}
+				console.log( reduceZoom );
+				reportWindowSize();
+			}
 		}
 		else if( true ) {
 			// avoid following cases for now
