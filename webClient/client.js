@@ -39,13 +39,19 @@ function reportWindowSize() {
 	canvas.height = baseH * drawScale;
 	canvas.width = baseW * drawScale;
 	
-	fontSpacingH = baseFontSpacingH * drawScale;
-	fontSpacingV = baseFontSpacingV * drawScale;
+	setFontSpacing( drawScale );
 
 	resetCursorFlash();
 	redrawNow();
 	setupMobileTextInput();
 }
+
+
+
+function setFontSpacing( inDrawScale ) {
+	fontSpacingH = baseFontSpacingH * inDrawScale;
+	fontSpacingV = baseFontSpacingV * inDrawScale;
+	}
 
 
 window.onresize = reportWindowSize;
@@ -747,7 +753,13 @@ function exportAll() {
 	var canvasSub = document.createElement( 'canvas' ),
     ctxSub = canvasSub.getContext( '2d' );
 
-    canvasSub.width = canvas.width;
+	
+	// always export at base size, never blow up or shrunken down
+	var oldDrawScale = drawScale;
+	drawScale = 1;
+	setFontSpacing( drawScale );
+	
+    canvasSub.width = baseW;
     canvasSub.height = fontSpacingV * ( lineBuffer.length + 1 );
 
 	drawFrameContents( ctxSub, canvasSub, true );
@@ -761,6 +773,10 @@ function exportAll() {
 	var win = window.open();
 	win.document.write( "<pre>" + stringToEncode + "</pre>" );
 	win.document.close();
+
+	// restore to our window size
+	drawScale = oldDrawScale;
+	setFontSpacing( drawScale );
 }
 
 
