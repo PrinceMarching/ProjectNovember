@@ -3129,6 +3129,73 @@ function pn_isLineJunk( $inLine ) {
 
 
 
+function pn_startsWith( $string, $startString ) { 
+    $len = strlen( $startString ); 
+    return ( substr( $string, 0, $len ) === $startString ); 
+    } 
+
+
+
+function pn_isLineEchoOrRepeat( $inBuffer, $inLine,
+                                $inHumanLabel, $inComputerLabel ) {
+    
+    $lines = preg_split( "/\n\n/", $inBuffer );
+
+    $numLines = count( $lines );
+    
+    if( $numLines < 3 ) {
+        // not enough in buffer to check for both echo and repeat
+        pn_log( "Error:  Checking for echos, buffer has $numLines < 3 lines?" );
+                
+        return false;
+        }
+
+    
+    // last line is "Computer:"
+
+    // second to last is what human said last
+    $humanLine = $lines[ $numLines - 2 ];
+
+    // third to last is what computer said last
+
+    $computerLine = $lines[ $numLines - 3 ];
+
+    if( ! pn_startsWith( $humanLine, $inHumanLabel )
+        || ! pn_startsWith( $computerLine, $inComputerLabel ) ) {
+
+        pn_log( "Error:  Checking for echos, line starts unexpected ".
+                "(expecting $inHumanLabel and $inComputerLabel) ".
+                "(seeing: $humanLine ) ".
+                "(seeing: $computerLine ) " );
+
+        return false;
+        }
+
+    $strippedHumanLine = trim( substr( $humanLine,
+                                       strlen( $inHumanLabel ) ) );
+
+    $strippedComputerLine = trim( substr( $computerLine,
+                                          strlen( $inComputerLabel ) ) );
+
+    $newLine = trim( $inLine );
+
+
+    // stop if new line is even a prefix of last human or computer line
+    // don't wait until we generate the whole thing.
+    
+    if( pn_startsWith( $strippedHumanLine, $newLine ) ) {
+        return true;
+        }
+    else if( pn_startsWith( $strippedComputerLine, $newLine ) ) {
+        return true;
+        }
+
+    return false;
+    }
+
+
+
+
 
 function pn_talkAI() {
     set_time_limit( 120 );
@@ -3190,7 +3257,7 @@ function pn_talkAI() {
         return;
         }
     else if( $special == "wipe" ) {
-        pn_wipeConversationBuffer( $aiOwnedID );
+        pn_wipeConversationBuffer( $aiOwnedID, "'wipe' command" );
         
         // exit back to wipe message page
         pn_standardResponseForPage( $email, "wipe_result" );
@@ -3213,6 +3280,10 @@ function pn_talkAI() {
     // but we'll add the space back later, before presenting the results
     // to the user.
     $ai_response_label = trim( $ai_response_label );
+
+    // hard-coded for now
+    $human_response_label = "Human:";
+    
     
     // append to buffer with blank lines between and prompt for ai
     $appendText = "\n\n$clientLine\n\n$ai_response_label";
@@ -3259,6 +3330,11 @@ function pn_talkAI() {
 
     $startTime = microtime( true );
     $timeoutCount = 0;
+
+    $previousNewBuffer = $newBuffer;
+
+    $responseLoopingCount = 0;
+    
     
     while( ! $aiDone ) {
 
@@ -3279,7 +3355,8 @@ function pn_talkAI() {
                             "'$newBuffer'" );
                     // probably need to start over, and clear older
                     // part of buffer
-                    pn_wipeConversationBuffer( $aiOwnedID );
+                    pn_wipeConversationBuffer( $aiOwnedID,
+                                               "repeated junk responses" );
 
                     $newBuffer = pn_addToConversationBuffer( $aiOwnedID,
                                                              $appendText );
@@ -3428,6 +3505,41 @@ function pn_talkAI() {
         $newBuffer = $newBuffer . $gennedLine;
         
         $aiResponse = $aiResponse . $gennedLine;
+
+
+        // retry if AI gives us echo of human or repeat of what it
+        // already said
+        if( pn_isLineEchoOrRepeat( $previousNewBuffer, $aiResponse,
+                                   $human_response_label,
+                                   $ai_response_label ) ) {
+
+            if( $responseLoopingCount > 5 ) {
+                // keep getting a loop or echo response from AI
+                pn_log(
+                    "Stuck with AI looping its response $responseLoopingCount ".
+                    "times, ".
+                    "wiping and starting over: ".
+                    "'$previousNewBuffer'  ".
+                    "is leading to looped AI response '$aiResponse'" );
+                // probably need to start over, and clear older
+                // part of buffer
+                pn_wipeConversationBuffer( $aiOwnedID, "AI stuck looping" );
+                
+                $newBuffer = pn_addToConversationBuffer( $aiOwnedID,
+                                                         $appendText );
+                $previousNewBuffer = $newBuffer;
+                $responseLoopingCount = 0;
+                }
+            else {
+                // rewind just this response and try again
+                $newBuffer = $previousNewBuffer;
+                $responseLoopingCount ++;
+                }
+            
+            $aiResponse = "";
+            $aiDone = false;
+            }
+
         }
 
     // response is complete and ready!
@@ -3874,7 +3986,7 @@ function pn_archiveConversation( $aiOwnedID, $inFinalStamp = "" ) {
 
 
 
-function pn_wipeConversationBuffer( $aiOwnedID ) {
+function pn_wipeConversationBuffer( $aiOwnedID, $inReason = "" ) {
     global $tableNamePrefix;
 
     $query = "SELECT page_name FROM $tableNamePrefix"."owned_ai ".
@@ -3884,7 +3996,7 @@ function pn_wipeConversationBuffer( $aiOwnedID ) {
     
     $aiPageName = pn_mysqli_result( $result, 0, "page_name" );
 
-    pn_archiveConversation( $aiOwnedID, "(BUFFER WIPED)" );
+    pn_archiveConversation( $aiOwnedID, "(BUFFER WIPED - $inReason)" );
     
 
     $query = "SELECT display_text FROM $tableNamePrefix"."pages ".
