@@ -3379,7 +3379,7 @@ function pn_talkAI() {
                                          0, -strlen( $aiResponse ) );
 
                     // clear response so far
-                    $aiResponse;
+                    $aiResponse = "";
                     }
                 $tryCount = 0;
                 }
@@ -3784,8 +3784,17 @@ function pn_getAICompletion( $prompt, $ai_protocol,
 
         $promptLen = strlen( $prompt );
 
+        pn_log( "Prompting gpt3 with length-$promptLen string:\n".
+                "'$prompt'\n".
+                "Got full completion:\n".
+                "'$textGen'" );
+        
+        
         // gpt3 python output includes prompt in response
         $textGen = substr( $textGen, $promptLen );
+
+        pn_log( "After trimming:\n".
+                "'$textGen'" );
         
         return $textGen;    
         }
