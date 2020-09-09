@@ -3777,6 +3777,18 @@ function pn_getAICompletion( $prompt, $ai_protocol,
             return $textGen;
             }
         }
+    else if( $ai_protocol == "gpt3" ) {
+        global $openAIKey;
+
+        $textGen = shell_exec( "python3 gpt3.py $openAIKey \"$prompt\"" );
+
+        $promptLen = strlen( $prompt );
+
+        // gpt3 python output includes prompt in response
+        $textGen = substr( $textGen, $promptLen );
+        
+        return $textGen;    
+        }
     else {
         return "UNKNOWN_PROTOCOL";
         }

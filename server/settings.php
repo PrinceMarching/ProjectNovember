@@ -126,6 +126,10 @@ $bufferEncryptionSecret = "3d8f9891437e8f8f42235c21a9e197f384bf3ea1";
 // coreweave transformer URL
 $coreWeaveURL = "http://put_your_url_here";
 
+// openAI API key
+$openAIKey = "sk_";
+
+
 
 // replace with live secret from Stripe.
 $stripeWebhookSecret = "whsec_DOAaOfi6oovfI9anrb6pSy3ofEF3uIWJ";
