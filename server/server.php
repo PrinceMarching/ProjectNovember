@@ -3190,6 +3190,22 @@ function pn_isLineEchoOrRepeat( $inBuffer, $inLine,
         return true;
         }
 
+    // also check for loops INSIDE what computer is saying in this response
+    // only if what computer is saying is starting to get long
+    if( strlen( $strippedComputerLine ) > 400 ) {
+        // look at last 40 characters
+        $end = substr( $strippedComputerLine, -40 );
+        $rest = substr( $strippedComputerLine, 0,
+                        strlen( $strippedComputerLine ) - 40 );
+
+        if( substr_count( $rest, $end ) > 1 ) {
+            // ending repeated 2 or more times in rest
+            // it is looping
+            return true;
+            }
+        }
+    
+    
     return false;
     }
 
