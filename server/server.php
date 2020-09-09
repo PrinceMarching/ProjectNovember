@@ -3122,6 +3122,13 @@ function pn_incrementUserExitCount( $email ) {
 
 function pn_isLineJunk( $inLine ) {
     if( strlen( count_chars( $inLine, 3 ) )  < 4 ) {
+
+        // allow simple numerical answers
+        // these might have very few characters
+        if( preg_match( "/^\s*[\-0-9,.]+/", $inLine ) ) {
+            return false;
+            }
+        
         return true;
         }
     return false;
