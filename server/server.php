@@ -3780,8 +3780,14 @@ function pn_getAICompletion( $prompt, $ai_protocol,
     else if( $ai_protocol == "gpt3" ) {
         global $openAIKey;
 
-        $textGen = shell_exec( "python3 gpt3.py $openAIKey \"$prompt\"" );
+        $temp_file = tempnam( sys_get_temp_dir(), 'gpt3Prompt' );
+        file_put_contents( $temp_file, $prompt );
+        
+        
+        $textGen = shell_exec( "python3 gpt3.py $openAIKey $temp_file" );
 
+        unlink( $temp_file );
+        
         $promptLen = strlen( $prompt );
 
         pn_log( "Prompting gpt3 with length-$promptLen string:\n".

@@ -9,7 +9,14 @@ if len( sys.argv ) < 3:
 
 openai.api_key = sys.argv[1];
 
-p=sys.argv[2]
+fileName=sys.argv[2]
+
+f = open( fileName, 'r' )
+
+
+p = f.read()
+
+f.close();
 
 response = openai.Completion.create(engine="davinci",prompt=p,max_tokens=20,temperature=1.0,top_p=0.9)
 
