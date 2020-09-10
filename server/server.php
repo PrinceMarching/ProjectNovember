@@ -4295,7 +4295,7 @@ function pn_customCreate() {
 
     $contextPartLengthMax = $contextLengthMax / 2;
     
-    $labelMaxLen = 40;
+    $labelMaxLen = 29;
         
 
     
@@ -4474,10 +4474,41 @@ function pn_customCreate() {
             $showTheirTextB = "  $partToAdd:";
             $showTheirTextBColor = $parts[3];
 
-            $promptText = "Enter intro paragraph:";
+            $promptText =  "(Leave blank for default,";
+            $promptTextB = " which is 'Human')";
+            $promptTextC = "Enter human text response label:";
             }
         }
     else if( $numParts == 6 ) {
+        // human text prompt
+        $partToAdd = pn_requestFilter( "client_command",
+                                       "/[A-Z0-9 \-]+/i", "" );
+
+        if( $forceRedo ) {
+            $promptText = "Enter human text response label:";
+            $addNewPart = false;
+            }
+        else if( strlen( $partToAdd ) > $labelMaxLen ) {
+            $promptText = "  Label can't be longer than ".
+                "$labelMaxLen characters.";
+            $promptTextB = "Enter human text response label:";
+            $addNewPart = false;
+            }
+        else {
+            $label = $partToAdd;
+
+            if( $label == "" ) {
+                $label = "Human";
+                }
+            
+            $showTheirTextA = "  Human responses will start with:";
+            $showTheirTextB = "  $label:";
+            $showTheirTextBColor = $parts[4];
+
+            $promptText = "Enter intro paragraph:";
+            }
+        }
+    else if( $numParts == 7 ) {
         // intro paragraph
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9 .!?'\"$%()&\-,;+=:]+/i", "" );
@@ -4499,7 +4530,7 @@ function pn_customCreate() {
             $promptText = "Enter example utterance:";
             }
         }
-    else if( $numParts == 7 ) {
+    else if( $numParts == 8 ) {
         // example utterance
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9 .!?'\"$%()&\-,;+=:]+/i", "" );
@@ -4523,12 +4554,12 @@ function pn_customCreate() {
 
             $engineList = pn_getEngineList();
             
-            $promptText =  "  Matrix can be:";
+            $promptText =  "  Matrix engine can be:";
             $promptTextB = "  $engineList";
             $promptTextC = "Enter matrix engine name:";
             }
         }
-    else if( $numParts == 8 ) {
+    else if( $numParts == 9 ) {
         // ai engine
         $partToAdd = pn_requestFilter( "client_command",
                                        "/[A-Z0-9\-]+/i", "" );
@@ -4555,7 +4586,7 @@ function pn_customCreate() {
             $promptTextC = "Type \"undo\" to go back one step.";
             }
         }
-    else if( $numParts == 9 ) {
+    else if( $numParts == 10 ) {
         // have everything we need to make AI page here
 
         $command = strtoupper(
@@ -4578,20 +4609,28 @@ function pn_customCreate() {
         $display_color = $parts[3];
         $prompt_color = $parts[4];
         $ai_response_label = $parts[5] . ":";
+        $human_response_label = trim( $parts[6] );
 
+        if( $human_response_label != "" ) {
+            // they specified non default, add :
+            $human_response_label = $human_response_label . ":";
+            }
+        
+        
+        
         // longevity = cost for coreWeave AI
         // other back-ends may be priced differently
         $ai_longevity = $ai_cost;
 
-        $paragraph = $parts[6];
-        $utter = $ai_response_label . " " . $parts[7];
+        $paragraph = $parts[7];
+        $utter = $ai_response_label . " " . $parts[8];
         
         $body = $paragraph . "\n\n" . $utter;
         $slashedBody = pn_mysqlEscape( $body );
 
         // core weave for now
         // maybe support other protocols later
-        $ai_protocol = pn_getProperEngineName( $parts[8] );
+        $ai_protocol = pn_getProperEngineName( $parts[9] );
 
         $ai_creator_id = pn_getUserID( $email );
 
@@ -4605,6 +4644,7 @@ function pn_customCreate() {
             "ai_name = '$ai_name',".
             "ai_cost = '$ai_cost',".
             "ai_response_label = '$ai_response_label',".
+            "human_response_label = '$human_response_label',".
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
             "ai_sound_url = '',".
