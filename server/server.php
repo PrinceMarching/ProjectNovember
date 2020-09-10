@@ -3655,7 +3655,12 @@ function pn_firstLineOnly( $inString ) {
     $gennedLineParts = array_filter( explode( "\n", $inString ),
                                      "pn_isNotEmpty" );
 
-    return $gennedLineParts[0];
+    if( count( $gennedLineParts ) > 0 ) {
+        return $gennedLineParts[0];
+        }
+    else {
+        return "";
+        }
     }
 
 
@@ -4286,11 +4291,9 @@ function pn_customCreate() {
         strtoupper( pn_requestFilter( "client_command",
                                       "/[A-Z0-9 \-]+/i", "" ) ) ) {
         if( $numParts > 1 ) {
-            pn_log( "undo before = $parts" );
-            
             // strip off most recently added part
             $parts = array_slice( $parts, 0, $numParts - 1 );
-            pn_log( "undo after = $parts" );
+
             $carried_param = join( "\n", $parts );
             $numParts -= 1;
 
