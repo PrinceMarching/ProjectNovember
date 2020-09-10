@@ -254,6 +254,12 @@ else if( $action == "toggle_conversation_logging" ) {
 else if( $action == "purchase" ) {
     pn_purchase();
     }
+else if( $action == "show_conversation_logs" ) {
+    pn_showConversationLogs();
+    }
+else if( $action == "export_emails" ) {
+    pn_exportEmails();
+    }
 else if( $action == "logout" ) {
     pn_logout();
     }
@@ -1061,7 +1067,9 @@ function pn_showLinkHeader() {
         "\">Main</a>] [<a href=\"server.php?action=show_pages" .
         "\">Pages</a>] [<a href=\"server.php?action=show_pages&user=1" .
         "\">User Pages</a>]</td>".
-        "<td align=right>[<a href=\"server.php?action=logout" .
+        "<td align=right>[<a href=\"server.php?action=show_conversation_logs" .
+        "\">Conversation Logs</a>][<a href=\"server.php?action=export_emails" .
+        "\">Export Emails</a>][<a href=\"server.php?action=logout" .
         "\">Logout</a>]</td>".
         "</tr></table><br><br><br>";
     }
@@ -1405,9 +1413,11 @@ function pn_showDetail( $checkPassword = true ) {
             $page_name = pn_mysqli_result( $result, $i, "page_name" );
             $time = pn_mysqli_result( $result, $i, "log_time" );
             $log_len = pn_mysqli_result( $result, $i, "log_len" );
-            
-            echo "$time <a href='server.php?action=show_conversation&id=$id'>".
-                "$page_name</a> ($log_len)<br>";
+
+            echo "<a href='server.php?action=show_conversation&id=$id'>".
+                "$time</a> (len=$log_len) ".
+                "[<a href='server.php?action=edit_page&name=$page_name'>".
+                "$page_name</a>]<br><br>";
             }
         echo "<hr>";
         }
@@ -5594,11 +5604,100 @@ function pn_purchase() {
 
 
     
+function pn_showConversationLogs() {
+    pn_checkPassword( "show_conversation_logs" );
+
+    pn_showLinkHeader();
+
+    global $tableNamePrefix;
+
+    $query = "SELECT id, user_id, page_name, ai_age, ".
+        "length( conversation_log ) as log_len ".
+        "FROM $tableNamePrefix"."owned_ai ".
+        "WHERE length( conversation_log ) > 0 ORDER BY id desc;";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        echo "Live logs:<br><br>";
+    
+        for( $i=0; $i<$numRows; $i++ ) {
+            $id = pn_mysqli_result( $result, $i, "id" );
+            $user_id = pn_mysqli_result( $result, $i, "user_id" );
+            $page_name = pn_mysqli_result( $result, $i, "page_name" );
+            $age = pn_mysqli_result( $result, $i, "ai_age" );
+            $log_len = pn_mysqli_result( $result, $i, "log_len" );
+
+            $email = pn_getEmail( $user_id );
+            
+            echo "<a href='server.php?action=edit_page&name=$page_name'>".
+                "$page_name</a> ".
+                "(age=$age) (<a href='server.php?".
+                "action=show_detail&email=$email'>$email</a> - $user_id) ".
+                "[<a href='server.php?action=show_live_conversation".
+                "&id=$id'>log=$log_len</a>]<br><br>";
+            }
+        echo "<hr><br><br>";
+        }
+    
+    
+    $query = "SELECT id, page_name, log_time, email, ".
+        "length( conversation ) as log_len ".
+        "FROM $tableNamePrefix"."conversation_logs ".
+        "ORDER BY log_time desc;";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        echo "Archived conversations:<br><br>";
+    
+        for( $i=0; $i<$numRows; $i++ ) {
+            $id = pn_mysqli_result( $result, $i, "id" );
+            $email = pn_mysqli_result( $result, $i, "email" );
+            $page_name = pn_mysqli_result( $result, $i, "page_name" );
+            $time = pn_mysqli_result( $result, $i, "log_time" );
+            $log_len = pn_mysqli_result( $result, $i, "log_len" );
+
+            $user_id = pn_getUserID( $email );
+            
+            echo "$time (<a href='server.php?".
+                "action=show_detail&email=$email'>$email</a> - $user_id) ".
+                "(<a href='server.php?action=show_conversation&id=$id'>".
+                "log=$log_len</a>) ".
+                "[<a href='server.php?action=edit_page&name=$page_name'>".
+                "$page_name</a>]<br><br>";
+            }
+        }
+    
+    }
 
 
+function pn_exportEmails() {
+    pn_checkPassword( "export_emails" );
 
+    pn_showLinkHeader();
 
+    global $tableNamePrefix;
 
+    $query = "SELECT email FROM $tableNamePrefix"."users;";
+    
+    echo "<textarea rows=20 cols=40>email\n";
+
+        
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    for( $i=0; $i<$numRows; $i++ ) {
+        $email = pn_mysqli_result( $result, $i, "email" );
+        echo "$email\n";
+        }
+    echo "</textarea>";
+    }
 
 
 $pn_mysqlLink;
