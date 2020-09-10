@@ -4199,6 +4199,37 @@ function pn_getUniqueAISearchPhrase( $email ) {
     }
 
 
+function pn_isEngineSupported( $inEngine ) {
+    $lower = strtolower( $inEngine );
+    
+    if( $lower == "coreweave" ||
+        $lower == "gpt3" ) {
+        return true;
+        }
+    return false;
+    }
+
+// separated by two spaces and or
+function pn_getEngineList() {
+    return "coreWeave  or  gpt3";
+    }
+
+
+function pn_getProperEngineName( $inRoughName ) {
+    $lower = strtolower( $inRoughName );
+    
+    if( $lower == "coreweave" ) {
+        return "coreWeave";
+        }
+    if( $lower == "gpt3" ) {
+        return "gpt3";
+        }
+
+    return $inRoughName;
+    }
+
+
+
 
 function pn_customCreate() {    
     $email = pn_checkAndUpdateClientSeqNumber();
@@ -4452,11 +4483,41 @@ function pn_customCreate() {
             $showTheirTextB = "  $label: $partToAdd";
             $showTheirTextBColor = $parts[3];
 
-            $promptText = "Type \"confirm\" to construct matrix.";
-            $promptTextB = "Type \"exit\" to cancel.";
+            $engineList = pn_getEngineList();
+            
+            $promptText =  "  Matrix can be:";
+            $promptTextB = "  $engineList";
+            $promptTextC = "Enter matrix engine name:";
             }
         }
     else if( $numParts == 8 ) {
+        // ai engine
+        $partToAdd = pn_requestFilter( "client_command",
+                                       "/[A-Z0-9\-]+/i", "" );
+
+        if( $forceRedo ) {
+            $engineList = pn_getEngineList();
+            
+            $promptText =  "  Matrix can be:";
+            $promptTextB = "  $engineList";
+            $promptTextC = "Enter matrix engine name:";
+            $addNewPart = false;
+            }
+        else if( ! pn_isEngineSupported( $partToAdd ) ) {
+            $promptText = "  Engine '$partToAdd' not supported.";
+            $promptTextB = "Enter matrix engine name:";
+            $addNewPart = false;
+            }
+        else {
+            $partToAdd = pn_getProperEngineName( $partToAdd );
+            $showTheirTextA = "  Using engine: $partToAdd";
+
+            $promptText = "Type \"confirm\" to construct matrix.";
+            $promptTextB = "Type \"exit\" to cancel.";
+            $promptTextC = "Type \"undo\" to go back one step.";
+            }
+        }
+    else if( $numParts == 9 ) {
         // have everything we need to make AI page here
 
         $command = strtoupper(
@@ -4492,7 +4553,7 @@ function pn_customCreate() {
 
         // core weave for now
         // maybe support other protocols later
-        $ai_protocol = "coreWeave";
+        $ai_protocol = pn_getProperEngineName( $parts[8] );
 
         $ai_creator_id = pn_getUserID( $email );
 
