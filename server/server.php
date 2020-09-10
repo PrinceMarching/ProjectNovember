@@ -551,6 +551,10 @@ function pn_setupDatabase() {
             // what comes before AI's response when chatting with it
             // like "Computer: "
             "ai_response_label VARCHAR(30) NOT NULL,".
+            // what comes before human's response when chatting with it
+            // like "Human: "
+            // blank to use Human: as default
+            "human_response_label VARCHAR(30) NOT NULL,".
             // how many responses before complete
             // corruption
             "ai_longevity int NOT NULL,".
@@ -878,6 +882,8 @@ function pn_updatePage( $inCreateNewOnly ) {
     $ai_cost = pn_requestFilter( "ai_cost", "/[0-9]+/i", "0" );
     $ai_response_label =
         pn_requestFilter( "ai_response_label", "/[A-Z0-9\- :]+/i", "" );
+    $human_response_label =
+        pn_requestFilter( "human_response_label", "/[A-Z0-9\- :]+/i", "" );
     $ai_longevity = pn_requestFilter( "ai_longevity", "/[0-9]+/i", "0" );
     $ai_protocol = pn_requestFilter( "ai_protocol", "/[A-Z0-9\-_]+/i", "" );
     $ai_sound_url = pn_requestFilter( "ai_sound_url",
@@ -893,6 +899,7 @@ function pn_updatePage( $inCreateNewOnly ) {
             "ai_name = '$ai_name',".
             "ai_cost = '$ai_cost',".
             "ai_response_label = '$ai_response_label',".
+            "human_response_label = '$human_response_label',".
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
             "ai_sound_url = '$ai_sound_url',".
@@ -913,6 +920,7 @@ function pn_updatePage( $inCreateNewOnly ) {
             "ai_name = '$ai_name',".
             "ai_cost = '$ai_cost',".
             "ai_response_label = '$ai_response_label',".
+            "human_response_label = '$human_response_label',".
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
             "ai_sound_url = '$ai_sound_url',".
@@ -1562,6 +1570,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
     $ai_name = "";
     $ai_cost = 0;
     $ai_response_label = "";
+    $human_response_label = "";
     $ai_longevity = 0;
     $ai_protocol = "";
     $ai_sound_url = "";
@@ -1572,6 +1581,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
         global $tableNamePrefix;
         
         $query = "SELECT ai_name, ai_cost, ai_response_label,".
+            "human_response_label,".
             "ai_longevity, ai_protocol, ai_sound_url ".
             "FROM $tableNamePrefix"."pages ".
             "WHERE name='$name';";
@@ -1586,6 +1596,8 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
             $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
             $ai_response_label =
                 pn_mysqli_result( $result, 0, "ai_response_label" );
+            $human_response_label =
+                pn_mysqli_result( $result, 0, "human_response_label" );
             $ai_longevity = pn_mysqli_result( $result, 0, "ai_longevity" );
             $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
             $ai_sound_url = pn_mysqli_result( $result, 0, "ai_sound_url" );
@@ -1619,7 +1631,10 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
         value='<?php echo $ai_cost;?>'><br>
          AI Response Label:
     <INPUT TYPE="text" MAXLENGTH=30 SIZE=10 NAME="ai_response_label"
-        value='<?php echo $ai_response_label;?>'>
+        value='<?php echo $ai_response_label;?>'><br>
+         Human Response Label:
+    <INPUT TYPE="text" MAXLENGTH=30 SIZE=10 NAME="human_response_label"
+        value='<?php echo $human_response_label;?>'>
          AI Longevity:
     <INPUT TYPE="text" MAXLENGTH=10 SIZE=4 NAME="ai_longevity"
         value='<?php echo $ai_longevity;?>'><br>
@@ -3032,6 +3047,17 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     $display_text =
         pn_mysqli_result( $result, 0, "display_text" );
 
+    $human_response_label =
+        pn_mysqli_result( $result, 0, "human_response_label" );
+
+    global $humanTypedPrefix;
+    if( $human_response_label == "" ) {
+        // default
+        $human_response_label = $humanTypedPrefix;
+        }
+    // space added later, so trim
+    $human_response_label = trim( $human_response_label );
+    
 
     if( $conversation_buffer == "" ) {
         // empty so far
@@ -3052,9 +3078,6 @@ function pn_initiateTalkAI( $email, $pickedName ) {
                       "WHERE id = '$aiOwnedID';" );
     
     
-    global $humanTypedPrefix;
-    
-    
     
     // next action
     echo "talk_ai\n";
@@ -3065,7 +3088,8 @@ function pn_initiateTalkAI( $email, $pickedName ) {
     // no sound:
     echo "play_sound_url=\n";
     // Prefix what human types
-    echo "{" . $humanTypedPrefix . "}\n";
+    // leave space as part of it
+    echo "{" . $human_response_label . " }\n";
 
 
     $prompt_color =
@@ -3095,6 +3119,14 @@ function pn_initiateTalkAI( $email, $pickedName ) {
         echo
             "\n[$display_color] [$defaultPageCharMS] [0] [0] ".
             "       help   for more commands.";
+        }
+
+    if( $human_response_label != trim( $humanTypedPrefix ) ) {
+        // tell human about alternative character they are playing
+        echo
+            "\n[$display_color] [$defaultPageCharMS] [0] [0] ".
+            "Human is typing as '$human_response_label'";
+        
         }
     
     echo
@@ -3257,6 +3289,8 @@ function pn_talkAI() {
 
     $ai_response_label =
         pn_mysqli_result( $result, 0, "ai_response_label" );
+    $human_response_label =
+        pn_mysqli_result( $result, 0, "human_response_label" );
     
     // no filtering, because we append this to a buffer
     // in a way that applies mysqlEscape later
@@ -3287,9 +3321,6 @@ function pn_talkAI() {
     
     
     
-    global $humanTypedPrefix;
-    
-    $clientLine = "$humanTypedPrefix$clientCommand";
 
     // A space at the end of the prompt sent to the AI tends to produce
     // garbage completions.  Not sure why,
@@ -3297,9 +3328,20 @@ function pn_talkAI() {
     // to the user.
     $ai_response_label = trim( $ai_response_label );
 
-    // hard-coded for now
-    $human_response_label = "Human:";
     
+    if( $human_response_label == "" ) {
+        // default
+        global $humanTypedPrefix;
+        $human_response_label = $humanTypedPrefix;
+        }
+
+    // space added later, as needed, so trim now
+    $human_response_label = trim( $human_response_label );
+    
+    
+    
+    $clientLine = "$human_response_label $clientCommand";
+
     
     // append to buffer with blank lines between and prompt for ai
     $appendText = "\n\n$clientLine\n\n$ai_response_label";
@@ -3454,7 +3496,8 @@ function pn_talkAI() {
             // AI often continues conversation through multiple responses
             $gennedChatLines =
                 preg_split(
-                    '/$ai_response_label:|<\|endoftext\|>|'.
+                    '/$ai_response_label|<\|endoftext\|>|'.
+                    '$human_response_label|'.
                     'Human:|Humans:|The Human:|Machine:/',
                     $completion );
 
@@ -3603,7 +3646,8 @@ function pn_talkAI() {
         }
     
     // Prefix what human types
-    echo "{" . $humanTypedPrefix . "}\n";
+    // leave space
+    echo "{" . $human_response_label . " }\n";
     
     // color for what user types being added to bottom with Human: prefix
     echo "$prompt_color\n";
