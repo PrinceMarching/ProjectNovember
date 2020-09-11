@@ -36,22 +36,27 @@ function pnc_filter( $inValue, $inRegex, $inDefault = "" ) {
 
 $page = pnc_requestFilter( "page", "/[0-9]+/i", "1" );
 
-$fileName = "sample1.jpg";
 
 
-if( $page == 2 ) {
-    $fileName = "laurenConvo.jpg";
+if( $page == 1 ) {
+    $fileName = "romanceNovels.jpg";
+    }
+else if( $page == 2 ) {
+    $fileName = "sample1.jpg";
     }
 else if( $page == 3 ) {
-    $fileName = "sample3.jpg";
+    $fileName = "laurenConvo.jpg";
     }
 else if( $page == 4 ) {
-    $fileName = "sample4.jpg";
+    $fileName = "sample3.jpg";
     }
 else if( $page == 5 ) {
-    $fileName = "sample5.jpg";
+    $fileName = "sample4.jpg";
     }
 else if( $page == 6 ) {
+    $fileName = "sample5.jpg";
+    }
+else if( $page == 7 ) {
     $fileName = "sample6.jpg";
     }
 
@@ -98,7 +103,7 @@ if( $page < 6 ) {
 
 <?php
 
-if( $page == 1 ) {
+if( $page == 2 ) {
 ?>
 
 <table border=0 cellspacing=30>
