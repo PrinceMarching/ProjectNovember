@@ -3246,6 +3246,37 @@ function pn_isLineEchoOrRepeat( $inBuffer, $inLine,
             return true;
             }
         }
+
+    // make sure computer isn't repeating ANYTHING that it ever said
+    // before or anything that the human ever said before
+    
+    $humanLabelLen = strlen( $inHumanLabel );
+    $computerLabelLen = strlen( $inComputerLabel );
+    
+    // skip the lines we already covered above
+    for( $i=0; $i< $numLines - 3; $i++ ) {
+        $l = $lines[$i];
+        $isLine = false;
+        
+        if( pn_startsWith( $l, $inHumanLabel ) ) {
+            $l = trim( substr( $l, $humanLabelLen ) );
+            $isLine = true;
+            }
+        else if( pn_startsWith( $l, $inComputerLabel ) ) {
+            $l = trim( substr( $l, $computerLabelLen ) );
+            $isLine = true;
+            }
+
+        if( $isLine ) {
+            // stop if new line is even a prefix of any human or computer line
+            // don't wait until we generate the whole thing.
+            if( pn_startsWith( $l, $newLine ) ) {
+                return true;
+                }
+            }
+        }
+    
+    
     
     
     return false;
