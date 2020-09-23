@@ -51,6 +51,15 @@ function loadSoundObjectAndPlay( inURL, inPlayingCallback ) {
 			}
 		} );
 	}
+	
+	// at least play callback on error
+	request.onerror = function() {
+		console.log( "Failed to load sound URL ".concat( inURL ) );
+		if( inPlayingCallback != undefined ) {
+			inPlayingCallback();
+		}
+	}
+
 	request.send();
 }
 
