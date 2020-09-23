@@ -1262,8 +1262,23 @@ function parseStandardResponse( inResponse ) {
 	
 	playSoundURL = playSoundURLLine.replace( "play_sound_url=", "" );
 
+	let textDelay = 0;
+
 	if( playSoundURL != "" ) {
-		loadSoundObjectAndPlay( playSoundURL );
+
+		let urlParts = playSoundURL.split( "?" );
+
+		playSoundURL = urlParts[0];
+		
+		if( urlParts.length > 1 ) {
+			let urlParamString = "?".concat( urlParts[1] );
+			
+			let urlParams = new URLSearchParams( urlParamString );
+
+			if( urlParams.has( "text_delay" ) ) {
+				textDelay = urlParams.get( "text_delay" );
+			}
+		}
 	}
 
 	// remove curly braces
@@ -1282,28 +1297,53 @@ function parseStandardResponse( inResponse ) {
 	parts.shift();
 
 
-	responseNumeric = false;
-	responseEnterOnly = false;
 
-	let lines = parts.join( "\n" );
-	addResponseLines( lines );
+	var lines = parts.join( "\n" );
 
-
-	if( onMobile ) {
-		if( responseEnterOnly ) {
-			// leave whatever keyboard was last in place
-			// they all have ENTER keys
+	function addTheseLines() {
+		responseNumeric = false;
+		responseEnterOnly = false;
+		addResponseLines( lines );
+		
+		
+		if( onMobile ) {
+			if( responseEnterOnly ) {
+				// leave whatever keyboard was last in place
+				// they all have ENTER keys
+			}
+			else if( responseNumeric ) {
+				setMobileInputType( "number" );
+			}
+			else {
+				setMobileInputType( "text" );
+			}
 		}
-		else if( responseNumeric ) {
-			setMobileInputType( "number" );
-		}
-		else {
-			setMobileInputType( "text" );
-		}
+		
+		
+		unhidePrompt();
 	}
 
+	if( textDelay == 0 ||
+		playSoundURL == "" ) {
+		// add lines right now
+		addTheseLines();
+	}
+	else if( playSoundURL != "" &&
+			 textDelay == 0 ) {
+		// play sound right now
+		loadSoundObjectAndPlay( playSoundURL );
+		addTheseLines();
+		}
+	else if( playSoundURL != "" &&
+			 textDelay > 0 ) {
+		// need to delay text to start at a certain moment in sound
 
-	unhidePrompt();
+		function timedAdd () {
+			setTimeout( addTheseLines, textDelay * 1000 );
+		}
+
+		loadSoundObjectAndPlay( playSoundURL, timedAdd );
+	}
 }
 
 

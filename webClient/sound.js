@@ -31,7 +31,7 @@ function loadSoundObject( inURL ) {
 
 
 // plays immediately after it's loaded
-function loadSoundObjectAndPlay( inURL ) {
+function loadSoundObjectAndPlay( inURL, inPlayingCallback ) {
 	var request = new XMLHttpRequest();
 	request.open('GET', inURL, true);
 	request.responseType = 'arraybuffer';
@@ -45,6 +45,10 @@ function loadSoundObjectAndPlay( inURL ) {
 			newSoundObj.loaded = true;
 			
 			playSoundObjectAtTime( newSoundObj, aContext.currentTime );
+		
+			if( inPlayingCallback != undefined ) {
+				inPlayingCallback();
+			}
 		} );
 	}
 	request.send();

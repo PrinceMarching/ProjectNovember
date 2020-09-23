@@ -893,7 +893,7 @@ function pn_updatePage( $inCreateNewOnly ) {
     $ai_longevity = pn_requestFilter( "ai_longevity", "/[0-9]+/i", "0" );
     $ai_protocol = pn_requestFilter( "ai_protocol", "/[A-Z0-9\-_]+/i", "" );
     $ai_sound_url = pn_requestFilter( "ai_sound_url",
-                                      "/http[A-Z0-9:.\/\-_]+/i", "" );
+                                      "/http[A-Z0-9:.\/\-_?&=]+/i", "" );
 
 
     if( ! $inCreateNewOnly ) {
