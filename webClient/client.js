@@ -1269,8 +1269,6 @@ function parseStandardResponse( inResponse ) {
 	
 	popURL = openURLLine.replace( "open_url=", "" );
 	
-	console.log( "Pop url = ".concat( popURL ) );
-
 	if( popURL != "" ) {
 		openURLNewTab( popURL, 0 );
 	}
