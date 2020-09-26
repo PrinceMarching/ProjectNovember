@@ -3433,6 +3433,19 @@ function pn_talkAI() {
     $previousNewBuffer = $newBuffer;
 
     $responseLoopingCount = 0;
+
+
+    // if we go too long without completing response
+    // force AI to end by appending ...
+
+    // 30 seconds is actually quite a long time to wait
+    // that's like 10-15 responses from the AI, and more than
+    // a screen-full of text on the client
+    $forceEndSeconds = 30;
+    $forceEnd = false;
+
+    $forceAddElipses = false;
+    
     
     
     while( ! $aiDone ) {
@@ -3440,7 +3453,7 @@ function pn_talkAI() {
         $gennedLine = "";
         $tryCount = 0;
         
-        while( pn_isLineJunk( $gennedLine ) ) {
+        while( ! $forceEnd && pn_isLineJunk( $gennedLine ) ) {
 
             if( $tryCount > 5 ) {
                 // spinning our wheels here... AI keeps generating
@@ -3531,7 +3544,19 @@ function pn_talkAI() {
                 $completion = pn_getAICompletion( $newBuffer, $ai_protocol );
                 }
 
-        
+
+            $timePassed = microtime( true ) - $startTime;
+            
+            if( $timePassed > $forceEndSeconds ) {
+                // gone on long enough, force it to end
+                $forceEnd = true;
+
+                pn_log( "talkAI taking too long after $timePassed seconds.  ".
+                        "Prompting AI with '$newBuffer', ".
+                        "received completion '$completion'" );
+                }
+            
+            
             $responseCost ++;
     
             // AI often continues conversation through multiple responses
@@ -3582,11 +3607,19 @@ function pn_talkAI() {
                     
                     // cut off!
                     $aiDone = false;
+
+                    if( $forceEnd ) {
+                        // stick elipses on end of line, but later
+                        // so it doesn't end up in the prompt buffer
+                        // for next time
+                        $forceAddElipses = true;
+                        $aiDone = true;
+                        }
                     }
                 }
             
             
-            if( pn_isLineJunk( $gennedLine ) ) {
+            if( ! $forceEnd && pn_isLineJunk( $gennedLine ) ) {
                 // log the retry
                 pn_log( "Try $tryCount needs retry: ".
                         "Prompting AI with '$newBuffer', ".
@@ -3609,7 +3642,9 @@ function pn_talkAI() {
 
         // retry if AI gives us echo of human or repeat of what it
         // already said
-        if( pn_isLineEchoOrRepeat( $previousNewBuffer, $aiResponse,
+        // but allow echos or repeats through if we've run out of time
+        if( ! $forceEnd &&
+            pn_isLineEchoOrRepeat( $previousNewBuffer, $aiResponse,
                                    $human_response_label,
                                    $ai_response_label ) ) {
 
@@ -3670,6 +3705,16 @@ function pn_talkAI() {
                       "SET first_response_sent = 1 ".
                       "WHERE id = '$aiOwnedID';" );
 
+    if( $forceAddElipses ) {
+        // do this NOW, after adding response to buffer
+        // don't want to show AI a pattern of sticking ... at the end
+        // of what it says.
+        //
+        // however, we DO want to show this to user, so they
+        // see that the response was cut off (due to too much time taken)
+        $aiResponse = $aiResponse . "...";
+        }
+    
     
     // next action
     echo "talk_ai\n";
