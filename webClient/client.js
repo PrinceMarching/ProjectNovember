@@ -445,6 +445,8 @@ var hidePrompt = true;
 var email = "";
 var passWords = "";
 
+var forceReLogin = false;
+
 
 function getVisibleLines() {
 	return canvas.height / fontSpacingV - 2;
@@ -683,6 +685,10 @@ function doKeyPress( e ) {
 			// thus, if user enters them without any spaces, they will still
 			// work (server does the same, hashing them with no spaces)
 			passWords = lowerCommand.trim().split( /\s+/ ).join( "" );
+			startLoginA();
+		}
+		else if( forceReLogin ) {
+			forceReLogin = false;
 			startLoginA();
 		}
 		else if( lowerCommand == "export" ) {
@@ -1254,10 +1260,9 @@ function parseStandardResponse( inResponse ) {
 		addLineToBuffer( "SERVER TIMEOUT", "#FF0000", charPrintingStepMS, 
 						 0, 0 );
 
-		// FIXME:  this is a little abrupt and doesn't display the timeout
-		// message long enough.
-		// need to show prompt and let them press ENTER
-		startLoginA();
+		// wait for ENTER and then log in again, fresh
+		hidePrompt = false;
+		forceReLogin = true;
 		return;
 	}
 	
