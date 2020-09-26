@@ -1254,6 +1254,9 @@ function parseStandardResponse( inResponse ) {
 		addLineToBuffer( "SERVER TIMEOUT", "#FF0000", charPrintingStepMS, 
 						 0, 0 );
 
+		// FIXME:  this is a little abrupt and doesn't display the timeout
+		// message long enough.
+		// need to show prompt and let them press ENTER
 		startLoginA();
 		return;
 	}
