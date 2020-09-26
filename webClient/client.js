@@ -1247,12 +1247,26 @@ function parseStandardResponse( inResponse ) {
 		getEmailPrompt();
 		return;
 	}
+
+	if( parts.length < 7 ) {
+		// malformed message
+		// probably a server timeout
+		addLineToBuffer( "SERVER TIMEOUT", "#FF0000", charPrintingStepMS, 
+						 0, 0 );
+
+		startLoginA();
+		return;
+	}
+	
+
 	
 	nextServerAction = parts[0];
 	nextCarriedParam = parts[1];
 	openURLLine = parts[2];
 	
 	popURL = openURLLine.replace( "open_url=", "" );
+	
+	console.log( "Pop url = ".concat( popURL ) );
 
 	if( popURL != "" ) {
 		openURLNewTab( popURL, 0 );
