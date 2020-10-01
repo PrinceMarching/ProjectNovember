@@ -608,7 +608,8 @@ function pn_setupDatabase() {
             "ai_age INT UNSIGNED NOT NULL,".
             "conversation_buffer TEXT NOT NULL,".
             "conversation_log TEXT NOT NULL, ".
-            "first_response_sent TINYINT NOT NULL );";
+            "first_response_sent TINYINT NOT NULL,".
+            "last_time_music_played DATETIME NOT NULL );";
         
         $result = pn_queryDatabase( $query );
 
@@ -2844,7 +2845,8 @@ function pn_purchaseAI() {
                 "page_name = '$aiPageName',".
                 "ai_age = '0',".
                 "conversation_buffer = '',".
-                "conversation_log = '', first_response_sent = 0;";
+                "conversation_log = '', first_response_sent = 0, ".
+                "last_time_music_played = CURRENT_TIMESTAMP;";
             
             pn_queryDatabase( $query );
 
@@ -3309,7 +3311,10 @@ function pn_talkAI() {
 
     global $tableNamePrefix;
     
-    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+    $query = "SELECT *, ".
+        "TIME_TO_SEC( TIMEDIFF( CURRENT_TIMESTAMP, last_time_music_played ) ) ".
+        "as seconds_since_music_played ".
+        "FROM $tableNamePrefix"."owned_ai ".
         "WHERE id = '$aiOwnedID';";
 
     $result = pn_queryDatabase( $query );
@@ -3326,6 +3331,9 @@ function pn_talkAI() {
     $ai_age = pn_mysqli_result( $result, 0, "ai_age" );
     $first_response_sent =
         pn_mysqli_result( $result, 0, "first_response_sent" );
+
+    $seconds_since_music_played =
+        pn_mysqli_result( $result, 0, "seconds_since_music_played" );
     
     
 
@@ -3716,8 +3724,38 @@ function pn_talkAI() {
     
     pn_addToConversationBuffer( $aiOwnedID, $aiResponse );
 
+    $playMusic = false;
+
+    if( $first_response_sent ) {
+        // consider playing music if enough time has passed
+        if( $seconds_since_music_played > 3 * 60 ) {
+            // more than 3 minutes
+
+            //  1 in 10 chance of playing music
+            $randPick = rand( 1, 10 );
+
+            if( $randPick <= 1 ) {
+                $playMusic = true;
+                }
+            }
+        }
+    
+            
+                
+    
+    $musicTimeUpdateClause = "";
+
+    if( $playMusic || ! $first_response_sent ) {
+        // we play intro sound when first response sent
+
+        $musicTimeUpdateClause =
+            ", last_time_music_played = CURRENT_TIMESTAMP ";
+        }
+    
+    
     pn_queryDatabase( "UPDATE $tableNamePrefix"."owned_ai ".
                       "SET first_response_sent = 1 ".
+                      "$musicTimeUpdateClause ".
                       "WHERE id = '$aiOwnedID';" );
 
     if( $forceAddElipses ) {
@@ -3739,8 +3777,30 @@ function pn_talkAI() {
     echo "open_url=\n";
 
     if( $first_response_sent ) {
-        // no sound:
-        echo "play_sound_url=\n";
+        // no sound.
+
+        // but maybe music?
+
+        $playURL = "";
+        if( $playMusic && $ai_music_urls != "" ) {
+            pn_log( "Playing music" );
+            
+            $urlList = preg_split( "/\s+/", $ai_music_urls );
+
+            $numURLS = count( $urlList );
+            
+            if( $numURLS == 1 ) {
+                $playURL = $urlList[0];
+                }
+            else if( $numURLS > 1 ) {
+                $pickNumber = rand( 0, $numURLS - 1 );
+
+                $playURL = $urlList[ $pickNumber ];
+                }
+            }
+        pn_log( "Playing music $playURL" );
+        
+        echo "play_sound_url=$playURL\n";
         }
     else {
         echo "play_sound_url=$ai_sound_url\n";
