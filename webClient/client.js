@@ -1363,7 +1363,7 @@ function parseStandardResponse( inResponse ) {
 		unhidePrompt();
 	}
 
-	if( textDelay == 0 ||
+	if( textDelay == 0 &&
 		playSoundURL == "" ) {
 		// add lines right now
 		addTheseLines();
