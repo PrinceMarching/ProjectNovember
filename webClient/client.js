@@ -238,7 +238,10 @@ function drawCursor( inX, inY, inCTX ) {
 }
 
 
-function longLineSplitter( inString, maxLength ) {
+
+// if inNoWhitespaceFront is true, whitespace is stripped from front of 
+// all but first line after splitting.
+function longLineSplitter( inString, maxLength, inNoWhitespaceFront=true ) {
     var strs = [];
     while( inString.length > maxLength ) {
 		let pos = -1;
@@ -260,7 +263,15 @@ function longLineSplitter( inString, maxLength ) {
 
 		// leave trailing space at end
 		
-		strs.push( inString.substring( 0, pos + 1 ) );
+		let trimmedString = inString.substring( 0, pos + 1 );
+		
+		if( strs.length > 0 && inNoWhitespaceFront ) {
+			// this is not the first line of a long split block of text
+			// don't allow whitespace at the start of subsequent lines
+			trimmedString = trimmedString.trimStart();
+		}
+		
+        strs.push( trimmedString );
         
 		if( pos + 1 != inString.length ) {
 			// keep working on rest
@@ -274,6 +285,12 @@ function longLineSplitter( inString, maxLength ) {
 	if( inString != "" || strs.length == 0 ) {
 		// don't push a left-over empty string
 		// unless it's our only string (asked to split an empty string)
+		
+		if( strs.length > 0 && inNoWhitespaceFront ) {
+			// this is not our first line after splitting
+			// don't allow whitespace at start
+			inString = inString.trimStart();
+		}
 		strs.push( inString );
 	}
     return strs;
@@ -431,8 +448,11 @@ function drawFrame() {
 
 
 function splitCommandLines( inCanvas ) {
+	// allow whitespace at front lines typed by user, or else the responsiveness
+	// is weird (they type a space, but it doesn't appear).
 	commandLines = longLineSplitter( liveTypedCommand, 
-									 inCanvas.width / fontSpacingH - 3 );
+									 inCanvas.width / fontSpacingH - 3,
+									 false );
 	return commandLines;
 }
 
