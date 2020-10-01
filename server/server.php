@@ -567,6 +567,8 @@ function pn_setupDatabase() {
             // name of protocol used to get AI response
             "ai_protocol TEXT NOT NULL,".
             "ai_sound_url TEXT NOT NULL, ".
+            // separate music urls by spaces
+            "ai_music_urls TEXT NOT NULL, ".
             // user id of ai author
             // 0 for pages created by admin
             "ai_creator_id INT NOT NULL, ".
@@ -894,7 +896,12 @@ function pn_updatePage( $inCreateNewOnly ) {
     $ai_protocol = pn_requestFilter( "ai_protocol", "/[A-Z0-9\-_]+/i", "" );
     $ai_sound_url = pn_requestFilter( "ai_sound_url",
                                       "/http[A-Z0-9:.\/\-_?&=]+/i", "" );
+    $ai_music_urls = pn_requestFilter( "ai_music_urls",
+                                      "/[A-Z0-9:.\/\-_?&= ]+/i", "" );
 
+    // normalize single-space separation
+    $ai_music_urls = join( " ", preg_split( "/\s+/", $ai_music_urls ) );
+    
 
     if( ! $inCreateNewOnly ) {
         // update it
@@ -909,6 +916,7 @@ function pn_updatePage( $inCreateNewOnly ) {
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
             "ai_sound_url = '$ai_sound_url',".
+            "ai_music_urls = '$ai_music_urls',".
             "dest_names = '$dest_names' WHERE name = '$name';";
         
         
@@ -930,6 +938,7 @@ function pn_updatePage( $inCreateNewOnly ) {
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
             "ai_sound_url = '$ai_sound_url',".
+            "ai_music_urls = '$ai_music_urls',".
             "ai_creator_id = 0, ai_search_phrase='';";
 
         
@@ -1584,6 +1593,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
     $ai_longevity = 0;
     $ai_protocol = "";
     $ai_sound_url = "";
+    $ai_music_urls = "";
     
     if( $name != "" ) {
         // existing page
@@ -1592,7 +1602,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
         
         $query = "SELECT ai_name, ai_cost, ai_response_label,".
             "human_response_label,".
-            "ai_longevity, ai_protocol, ai_sound_url ".
+            "ai_longevity, ai_protocol, ai_sound_url, ai_music_urls ".
             "FROM $tableNamePrefix"."pages ".
             "WHERE name='$name';";
         
@@ -1611,6 +1621,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
             $ai_longevity = pn_mysqli_result( $result, 0, "ai_longevity" );
             $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
             $ai_sound_url = pn_mysqli_result( $result, 0, "ai_sound_url" );
+            $ai_music_urls = pn_mysqli_result( $result, 0, "ai_music_urls" );
             }
         }
     
@@ -1654,6 +1665,9 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
         AI sound url:
     <INPUT TYPE="text" MAXLENGTH=500 SIZE=40 NAME="ai_sound_url"
         value='<?php echo $ai_sound_url;?>'><br>
+        AI music urls (separate with spaces):<br>
+    <INPUT TYPE="text" MAXLENGTH=5000 SIZE=40 NAME="ai_music_urls"
+        value='<?php echo $ai_music_urls;?>'><br>
 </td></tr></table>               
     <INPUT TYPE="Submit" VALUE="<?php echo $buttonName;?>">
     </FORM>
@@ -3393,6 +3407,7 @@ function pn_talkAI() {
     $ai_longevity = pn_mysqli_result( $result, 0, "ai_longevity" );
     $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
     $ai_sound_url = pn_mysqli_result( $result, 0, "ai_sound_url" );
+    $ai_music_urls = pn_mysqli_result( $result, 0, "ai_music_urls" );
     $prompt_color = pn_mysqli_result( $result, 0, "prompt_color" );
     $display_color = pn_mysqli_result( $result, 0, "display_color" );
 
@@ -4734,6 +4749,7 @@ function pn_customCreate() {
             "ai_longevity = '$ai_longevity',".
             "ai_protocol = '$ai_protocol',".
             "ai_sound_url = '',".
+            "ai_music_urls = '',".
             "ai_creator_id = $ai_creator_id, ".
             "ai_search_phrase='$ai_search_phrase';";
 

@@ -37,3 +37,8 @@ ALTER TABLE novemberServer_pages ADD INDEX( ai_creator_deleted );
 
 
 ALTER TABLE novemberServer_pages ADD COLUMN human_response_label VARCHAR(30) NOT NULL AFTER ai_response_label;
+
+
+
+
+ALTER TABLE novemberServer_pages ADD COLUMN ai_music_urls TEXT NOT NULL AFTER ai_sound_url;
