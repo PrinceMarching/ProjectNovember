@@ -8,6 +8,13 @@ var aContext = new AudioContext();
 
 
 
+
+// current time, for now
+// set to end time of any playing sound
+var audioPlayingUntilTime = aContext.currentTime;
+
+
+
 // returns a sound object
 function loadSoundObject( inURL ) {
 	var request = new XMLHttpRequest();
@@ -79,7 +86,13 @@ function playSoundObjectAtTime( inSoundObj, inTime ) {
 	// connect the source to the context's destination (the speakers)
 	source.connect( aContext.destination );
 	// play the source at specified time
-	source.start( inTime );                           
+	source.start( inTime );
+
+    let newEndTime = source.buffer.duration + inTime;
+	
+	if( newEndTime > audioPlayingUntilTime ) {
+		audioPlayingUntilTime = newEndTime;
+	}
 }
 
 
@@ -93,5 +106,8 @@ function playSoundObjectSequence( inSoundObj, inPlayCount, inSpacingMS ) {
 
 
 
+function isSoundPlaying() {
+	return aContext.currentTime < audioPlayingUntilTime;
+}
 
 

@@ -1363,6 +1363,14 @@ function parseStandardResponse( inResponse ) {
 		unhidePrompt();
 	}
 
+
+	if( isSoundPlaying() ) {
+		// don't play overlapping sounds
+		textDelay = 0;
+		playSoundURL = "";
+	}
+	
+
 	if( textDelay == 0 &&
 		playSoundURL == "" ) {
 		// add lines right now
