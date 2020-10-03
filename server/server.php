@@ -3731,10 +3731,10 @@ function pn_talkAI() {
         if( $seconds_since_music_played > 3 * 60 ) {
             // more than 3 minutes
 
-            //  1 in 10 chance of playing music
+            //  2 in 10 chance of playing music
             $randPick = rand( 1, 10 );
 
-            if( $randPick <= 1 ) {
+            if( $randPick <= 2 ) {
                 $playMusic = true;
                 }
             }
