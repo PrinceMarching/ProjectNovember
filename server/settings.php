@@ -129,6 +129,9 @@ $coreWeaveURL = "http://put_your_url_here";
 // openAI API key
 $openAIKey = "sk_";
 
+// set to true to enable gpt3 protocol
+$gpt3Enabled = false;
+
 
 
 // replace with live secret from Stripe.

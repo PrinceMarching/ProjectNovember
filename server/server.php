@@ -3944,6 +3944,14 @@ function pn_registerAIUsed( $ai_protocol ) {
 function pn_getAICompletion( $prompt, $ai_protocol,
                              $logJSON=false, $timeout = 0 ) {
 
+    global $gpt3Enabled;
+    
+    if( $ai_protocol == "gpt3" && ! $gpt3Enabled ) {
+        // if gpt3 disabled, default to coreWeave replacement for gpt3
+        $ai_protocol = "coreWeave";
+        }
+    
+    
     if( $ai_protocol == "coreWeave" ) {
         pn_registerAIUsed( $ai_protocol );
         
