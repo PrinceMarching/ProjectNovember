@@ -4011,7 +4011,7 @@ function pn_getAICompletion( $prompt, $ai_protocol,
             return $textGen;
             }
         }
-    else if( $ai_protocol == "gpt3" ) {
+    else if( $ai_protocol == "gpt3" || $ai_protocol == "gpt3Force" ) {
         global $openAIKey;
 
         $temp_file = tempnam( sys_get_temp_dir(), 'gpt3Prompt' );
