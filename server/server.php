@@ -3783,8 +3783,6 @@ function pn_talkAI() {
 
         $playURL = "";
         if( $playMusic && $ai_music_urls != "" ) {
-            pn_log( "Playing music" );
-            
             $urlList = preg_split( "/\s+/", $ai_music_urls );
 
             $numURLS = count( $urlList );
@@ -3798,7 +3796,9 @@ function pn_talkAI() {
                 $playURL = $urlList[ $pickNumber ];
                 }
             }
-        pn_log( "Playing music $playURL" );
+        if( $playURL != "" ) {
+            pn_log( "Playing music $playURL" );
+            }
         
         echo "play_sound_url=$playURL\n";
         }
