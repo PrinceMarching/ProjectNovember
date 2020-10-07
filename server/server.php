@@ -3543,6 +3543,12 @@ function pn_talkAI() {
                                   "Protocol ($ai_protocol) not found." );
                 return;
                 }
+            else if( $completion == "ERROR" ) {
+                pn_showErrorPage(
+                    $email,
+                    "Matrix engine $ai_protocol returned empty response." );
+                return;
+                }
             
             while( $completion == "FAILED" ) {
                 $timeoutCount++;
@@ -3940,7 +3946,8 @@ function pn_registerAIUsed( $ai_protocol ) {
 
 
 // returns "FAILED" if could not reach server
-// returns "UNKNOWN_PROTOCOL" if could not reach server
+// returns "UNKNOWN_PROTOCOL" if AI specified protocol not supported
+// returns "ERROR" if AI is reachable but not functioning properly
 function pn_getAICompletion( $prompt, $ai_protocol,
                              $logJSON=false, $timeout = 0 ) {
 
@@ -4027,6 +4034,12 @@ function pn_getAICompletion( $prompt, $ai_protocol,
         // gpt3 python output includes prompt in response
         $textGen = substr( $textGen, $promptLen );
 
+        $strippedTextGen = trim( $textGen );
+
+        if( $strippedTextGen == "" ) {
+            return "ERROR";
+            }
+        
         return $textGen;    
         }
     else {
