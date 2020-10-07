@@ -3300,6 +3300,26 @@ function pn_isLineEchoOrRepeat( $inBuffer, $inLine,
 
 
 
+// list contains URLs separated by spaces
+function pickUrlFromList( $inList ) {
+    
+    $urlList = preg_split( "/\s+/", $inList );
+
+    $numURLS = count( $urlList );
+            
+    if( $numURLS == 1 ) {
+        return $urlList[0];
+        }
+    else if( $numURLS > 1 ) {
+        $pickNumber = rand( 0, $numURLS - 1 );
+        
+        return $urlList[ $pickNumber ];
+        }
+    else {
+        return "";
+        }
+    }
+
 
 
 function pn_talkAI() {
@@ -3789,18 +3809,7 @@ function pn_talkAI() {
 
         $playURL = "";
         if( $playMusic && $ai_music_urls != "" ) {
-            $urlList = preg_split( "/\s+/", $ai_music_urls );
-
-            $numURLS = count( $urlList );
-            
-            if( $numURLS == 1 ) {
-                $playURL = $urlList[0];
-                }
-            else if( $numURLS > 1 ) {
-                $pickNumber = rand( 0, $numURLS - 1 );
-
-                $playURL = $urlList[ $pickNumber ];
-                }
+            $playURL = pickUrlFromList( $ai_music_urls );
             }
         if( $playURL != "" ) {
             pn_log( "Playing music $playURL" );
@@ -4331,8 +4340,24 @@ function pn_initiateCustomCreate( $email ) {
     
     // no URL:
     echo "open_url=\n";
-    // no sound:
-    echo "play_sound_url=\n";
+
+    // music for custom create:
+
+    $musicURL = "";
+
+    global $customCreateMusic;
+
+    if( $customCreateMusic != "" ) {
+        $musicURL = pickUrlFromList( $customCreateMusic );
+
+        if( $musicURL != "" ) {
+            pn_log( "Playing music $musicURL" );
+            }
+        }
+
+    echo "play_sound_url=$musicURL\n";
+
+
     // no prefix for what they type
     echo "{}\n";
 

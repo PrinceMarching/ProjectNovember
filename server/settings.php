@@ -157,6 +157,8 @@ $fastSpringTagCreditMap = array( "pn1000" => 1000,
                                  "pn5000" => 5000 );
 
 
+// separate URLs by spaces
+$customCreateMusic = "http://localhost/jcr13/ProjectNovember/music/learnToCode/artificial_1.ogg http://localhost/jcr13/ProjectNovember/music/learnToCode/artificial_2.ogg http://localhost/jcr13/ProjectNovember/music/learnToCode/artificial_3.ogg";
 
 
 
