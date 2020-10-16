@@ -3355,6 +3355,7 @@ function pn_talkAI() {
     $seconds_since_music_played =
         pn_mysqli_result( $result, 0, "seconds_since_music_played" );
     
+    $user_id = pn_mysqli_result( $result, 0, "user_id" );
     
 
     $query = "SELECT * FROM $tableNamePrefix"."pages ".
@@ -3380,6 +3381,8 @@ function pn_talkAI() {
     // let user type ANYTHING
     $clientCommand = $_REQUEST[ "client_command" ];
 
+    $killIssued = false;
+    $killDisplayString = "";
 
     // watch for special commands
     $special = strtolower( trim( $clientCommand ) );
@@ -3401,7 +3404,9 @@ function pn_talkAI() {
         pn_standardResponseForPage( $email, "builtIn" );
         return;
         }
-    
+    else if( $special == "kill" ) {
+        $killIssued = true;
+        }
     
     
 
@@ -3425,6 +3430,15 @@ function pn_talkAI() {
     
     $clientLine = "$human_response_label $clientCommand";
 
+    if( $killIssued ) {
+        $humanName = preg_replace( '/:/', '', $human_response_label );
+        $aiName = preg_replace( '/:/', '', $ai_response_label );
+
+        // show this action to AI, to give it one last gasp of a response
+        $clientLine = "[$humanName KILLS $aiName]";
+        $killDisplayString = $clientLine;
+        }
+    
     
     // append to buffer with blank lines between and prompt for ai
     $appendText = "\n\n$clientLine\n\n$ai_response_label";
@@ -3438,6 +3452,8 @@ function pn_talkAI() {
     $ai_music_urls = pn_mysqli_result( $result, 0, "ai_music_urls" );
     $prompt_color = pn_mysqli_result( $result, 0, "prompt_color" );
     $display_color = pn_mysqli_result( $result, 0, "display_color" );
+
+    $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
 
     $corr = pn_getCorruptionFraction( $ai_age, $ai_longevity );
 
@@ -3733,6 +3749,8 @@ function pn_talkAI() {
         "SET ai_age = ai_age + $responseCost ".
         "WHERE id = '$aiOwnedID';";
 
+    $ai_age = $ai_age + $responseCost;
+    
     $result = pn_queryDatabase( $query );
     
     
@@ -3836,6 +3854,38 @@ function pn_talkAI() {
 
     global $defaultPageCharMS;
 
+
+    if( $killIssued ) {
+        // blank lines around kill command display
+        echo
+            "\n[$prompt_color] [$defaultPageCharMS] [0] [0] ".
+            "";
+        echo
+            "\n[$prompt_color] [$defaultPageCharMS] [0] [0] ".
+            "$killDisplayString";
+        echo
+            "\n[$prompt_color] [$defaultPageCharMS] [0] [0] ".
+            "";
+
+        // force it to be dead after next human response
+        pn_queryDatabase( "UPDATE $tableNamePrefix"."owned_ai ".
+                          "SET ai_age = $ai_longevity ".
+                          "WHERE id = '$aiOwnedID';" );
+
+        // refund them credits for the remaining life left.
+        $lifeLeft = $ai_longevity - $ai_age;
+
+        $creditsLeft = floor( ( $lifeLeft / $ai_longevity ) * $ai_cost );
+
+        pn_queryDatabase( "UPDATE $tableNamePrefix"."users ".
+                          "SET credits = credits + $creditsLeft ".
+                          "WHERE id = '$user_id';" );
+
+        pn_addToLedger( $email, $creditsLeft, $aiPageName,
+                        "User killed AI, remaining credits returned" );
+        }
+    
+    
     $corrSkip = strlen( $ai_response_label );
     
     echo
