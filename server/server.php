@@ -4026,7 +4026,7 @@ function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
         // phone currently talks to just one matrix
 
         $aiPageName = pn_getUserField( pn_getEmail( $user_id ),
-                                       "phone_matrix", "AI_friendly_gpt3" ) {
+                                       "phone_matrix", "AI_friendly_gpt3" );
         
         $r = pn_getRawAIResponse( $user_id,
                                   $aiPageName, $whatUserTyped );
