@@ -60,3 +60,10 @@ UPDATE novemberServer_owned_ai SET hidden = 0;
 ALTER TABLE novemberServer_users ADD COLUMN phone_number TEXT NOT NULL AFTER next_custom_page_id;
 
 UPDATE novemberServer_users SET phone_number = "";
+
+
+
+
+ALTER TABLE novemberServer_users ADD COLUMN phone_matrix TEXT NOT NULL AFTER phone_number;
+
+UPDATE novemberServer_users SET phone_matrix = "";
