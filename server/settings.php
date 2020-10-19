@@ -203,5 +203,10 @@ $smtpPasswordTrans = $smtpPassword;
 
 
 
+$twilioFromNumber = "";
+$twilioAccount = "";
+$twilioAuthToken = "";
+
+
 
 ?>
