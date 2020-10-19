@@ -54,3 +54,9 @@ UPDATE novemberServer_owned_ai SET last_time_music_played = CURRENT_TIMESTAMP;
 ALTER TABLE novemberServer_owned_ai ADD COLUMN hidden TINYINT NOT NULL AFTER last_time_music_played;
 
 UPDATE novemberServer_owned_ai SET hidden = 0;
+
+
+
+ALTER TABLE novemberServer_users ADD COLUMN phone_number TEXT NOT NULL AFTER next_custom_page_id;
+
+UPDATE novemberServer_users SET phone_number = "";

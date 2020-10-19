@@ -179,9 +179,12 @@ else if( $action == "custom_search" ) {
 else if( $action == "talk_ai" ) {
     pn_talkAI();
     }
-//else if( $action == "test_raw" ) {
-//    pn_testRaw();
-//    }
+else if( $action == "test_raw" ) {
+    //pn_testRaw();
+    }
+else if( $action == "phone_chat" ) {
+    pn_phoneChat();
+    }
 else if( $action == "custom_create" ) {
     pn_customCreate();
     }
@@ -196,6 +199,9 @@ else if( $action == "add_user" ) {
     }
 else if( $action == "add_credits" ) {
     pn_addCredits();
+    }
+else if( $action == "update_phone_number" ) {
+    pn_updatePhoneNumber();
     }
 else if( $action == "show_data" ) {
     pn_showData();
@@ -530,7 +536,8 @@ function pn_setupDatabase() {
             // after they learn it
             "num_times_exit_used INT NOT NULL,".
             "conversations_logged TINYINT NOT NULL,".
-            "next_custom_page_id INT NOT NULL );";
+            "next_custom_page_id INT NOT NULL, ".
+            "phone_number TEXT NOT NULL );";
 
         $result = pn_queryDatabase( $query );
 
@@ -835,7 +842,7 @@ function pn_addUser() {
         "current_page = '', client_sequence_number = '$seq', ".
         "last_good_hash_time = CURRENT_TIMESTAMP, ".
         "num_times_exit_used = 0, conversations_logged = 0, ".
-        "next_custom_page_id = 1;";
+        "next_custom_page_id = 1, phone_number = '';";
 
 
     global $pn_mysqlLink;
@@ -1327,11 +1334,12 @@ function pn_showDetail( $checkPassword = true ) {
         $user_id = pn_getUserID( $email );
         }
     
-    $query = "SELECT credits ".
+    $query = "SELECT phone_number, credits ".
             "FROM $tableNamePrefix"."users ".
             "WHERE id = '$user_id';";
     $result = pn_queryDatabase( $query );
     
+    $phone_number = pn_mysqli_result( $result, 0, "phone_number" );
     $credits = pn_mysqli_result( $result, 0, "credits" );
     
     
@@ -1356,6 +1364,23 @@ function pn_showDetail( $checkPassword = true ) {
 <?php
              
              echo "<br>";
+
+    // form for setting phone number
+?>
+        <td>
+        Phone number:
+            <FORM ACTION="server.php" METHOD="post">
+    <INPUT TYPE="hidden" NAME="action" VALUE="update_phone_number">
+    <INPUT TYPE="hidden" NAME="email" VALUE="<?php echo $email;?>">
+    <INPUT TYPE="text" MAXLENGTH=15 SIZE=15 NAME="number" VALUE="<?php echo $phone_number;?>"><br>
+    <INPUT TYPE="Submit" VALUE="Update">
+    </FORM>
+        </td>
+<?php
+             
+             echo "<br>";
+
+    
     
     if( pn_getUserConversationsLogged( $email ) ) {
         echo "Conversation logging is ON (turn ";
@@ -1570,6 +1595,28 @@ function pn_addCredits() {
 
         pn_addToLedger( $email, $add, "", "Admin added credits" );
         }
+    
+    pn_showDetail( false );
+    }
+
+
+
+
+function pn_updatePhoneNumber() {
+    pn_checkPassword( "updatePhoneNumber" );
+
+    $n = pn_requestFilter( "number", "/\+?[0-9]+/i", "" );
+
+    $email = pn_getEmailParam();
+
+    global $tableNamePrefix;
+    
+    $query = "UPDATE $tableNamePrefix"."users ".
+        "SET phone_number = '$n' ".
+        "WHERE email = '$email';";
+    $result = pn_queryDatabase( $query );
+    
+    echo "Updated phone number for $email<br>";
     
     pn_showDetail( false );
     }
@@ -3929,9 +3976,85 @@ function pn_talkAI() {
 
 
 function pn_testRaw() {
-    $r = pn_getRawAIResponse( 1, "AI_friendly", "Hey there, how are you?" );
-    echo $r;
+    //$r = pn_getRawAIResponse( 1, "AI_friendly", "Hey there, how are you?" );
+    //echo $r;
+
+    pn_talkAIPhone( "+15304218116", "Hey there, what's up?" );
     }
+
+
+
+function pn_getUserIDForPhoneNumber( $phone_number ) {
+    global $tableNamePrefix;
+    
+    
+    $query = "SELECT id ".
+            "FROM $tableNamePrefix"."users WHERE phone_number='$phone_number';";
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows == 1 ) {
+        return pn_mysqli_result( $result, 0, "id" );
+        }
+    return -1;
+    }
+
+
+
+function pn_phoneChat() {
+
+    $phone_number = pn_requestFilter( "From", "/\+?[0-9]+/i", "" );
+
+    // send raw body through, no filtering
+    $body = $_REQUEST[ "body" ];
+    pn_talkAIPhone( $phone_number, $body );
+    }
+
+
+
+function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
+    $user_id = pn_getUserIDForPhoneNumber( $senderPhoneNumber );
+
+
+    if( $user_id != -1 ) {
+
+        // phone currently talks to just one matrix
+
+        $r = pn_getRawAIResponse( $user_id,
+                                  "AI_friendly", $whatUserTyped );
+
+        global $twilioFromNumber, $twilioAccount, $twilioAuthToken;
+        
+        $postBody = http_build_query(
+            array(
+                'To' => $senderPhoneNumber,
+                'From' => $twilioFromNumber,
+                'Body' => $r ) );
+        
+        $url = "https://api.twilio.com/2010-04-01/Accounts/$twilioAccount/Messages.json";
+        
+        $httpArray = array(
+            'header'  =>
+            "Authorization: Basic " .
+                base64_encode("$twilioAccount:$twilioAuthToken") ."\r\n".
+            "Connection: close\r\n".
+            "Content-type: application/x-www-form-urlencoded\r\n".
+            "Content-Length: " . strlen($postBody) . "\r\n",
+            'method'  => 'POST',
+            'protocol_version' => 1.1,
+            'content' => $postBody );
+        
+        $options = array( 'http' => $httpArray );
+        $context  = stream_context_create( $options );
+        $result = file_get_contents( $url, false, $context );        
+        }
+    else {
+        echo "Error:  phone number not found";
+        }
+    }
+
+    
 
 
 
@@ -5958,7 +6081,7 @@ function pn_purchase() {
                     "current_page = '', client_sequence_number = '$seq', ".
                     "last_good_hash_time = CURRENT_TIMESTAMP, ".
                     "num_times_exit_used = 0, conversations_logged = 0, ".
-                    "next_custom_page_id = 1;";
+                    "next_custom_page_id = 1, phone_number = '';";
                 
                 $result = pn_queryDatabase( $query );
                 
