@@ -179,6 +179,9 @@ else if( $action == "custom_search" ) {
 else if( $action == "talk_ai" ) {
     pn_talkAI();
     }
+else if( $action == "test_raw" ) {
+    pn_testRaw();
+    }
 else if( $action == "custom_create" ) {
     pn_customCreate();
     }
@@ -609,7 +612,9 @@ function pn_setupDatabase() {
             "conversation_buffer TEXT NOT NULL,".
             "conversation_log TEXT NOT NULL, ".
             "first_response_sent TINYINT NOT NULL,".
-            "last_time_music_played DATETIME NOT NULL );";
+            "last_time_music_played DATETIME NOT NULL, ".
+            // hidden AIs don't show up in main UI owned AI list
+            "hidden TINYINT NOT NULL );";
         
         $result = pn_queryDatabase( $query );
 
@@ -1378,7 +1383,7 @@ function pn_showDetail( $checkPassword = true ) {
 <?php
 
              
-    $query = "SELECT id, page_name, ai_age, ".
+    $query = "SELECT id, page_name, ai_age, hidden, ".
              "length( conversation_buffer ) as buff_len, ".
              "length( conversation_log ) as log_len ".
              "FROM $tableNamePrefix"."owned_ai ".
@@ -1393,13 +1398,20 @@ function pn_showDetail( $checkPassword = true ) {
     
         for( $i=0; $i<$numRows; $i++ ) {
             $id = pn_mysqli_result( $result, $i, "id" );
+            $hidden = pn_mysqli_result( $result, $i, "hidden" );
             $page_name = pn_mysqli_result( $result, $i, "page_name" );
             $age = pn_mysqli_result( $result, $i, "ai_age" );
             $buff_len = pn_mysqli_result( $result, $i, "buff_len" );
             $log_len = pn_mysqli_result( $result, $i, "log_len" );
+
+            $hiddenString = "";
+
+            if( $hidden ) {
+                $hiddenString = " (hidden) ";
+                }
             
             echo "<a href='server.php?action=edit_page&name=$page_name'>$page_name</a> ".
-                "($age) [buffer=$buff_len] ".
+                "$hiddenString($age) [buffer=$buff_len] ".
                 "[<a href='server.php?action=show_live_conversation".
                 "&id=$id'>log=$log_len</a>]<br>";
             }
@@ -2342,7 +2354,7 @@ function pn_clientPage() {
     foreach( $destList as $n ) {
         if( $n == "talk_AI" ) {
             $query = "SELECT id from $tableNamePrefix"."owned_ai ".
-                "WHERE user_id = '$user_id';";
+                "WHERE user_id = '$user_id' AND hidden = 0;";
             
             $result = pn_queryDatabase( $query );
     
@@ -2567,7 +2579,8 @@ function pn_getAIOwnedCount( $email, $aiPageName ) {
     global $tableNamePrefix;
     
     $query = "SELECT COUNT(*) FROM $tableNamePrefix"."owned_ai ".
-        "WHERE user_id = '$user_id' AND page_name = '$aiPageName';";
+        "WHERE user_id = '$user_id' AND page_name = '$aiPageName' ".
+        "AND hidden = 0;";
     
     $result = pn_queryDatabase( $query );
     $ownedCount = pn_mysqli_result( $result, 0, 0 );
@@ -2846,7 +2859,7 @@ function pn_purchaseAI() {
                 "ai_age = '0',".
                 "conversation_buffer = '',".
                 "conversation_log = '', first_response_sent = 0, ".
-                "last_time_music_played = CURRENT_TIMESTAMP;";
+                "last_time_music_played = CURRENT_TIMESTAMP, hidden = 0;";
             
             pn_queryDatabase( $query );
 
@@ -3850,7 +3863,7 @@ function pn_talkAI() {
     echo "0\n";
 
     // use it for prompt too
-    echo "$prompt_color\n";
+    echo "$prompt_color";
 
     global $defaultPageCharMS;
 
@@ -3911,6 +3924,171 @@ function pn_talkAI() {
         }
     
     }
+
+
+
+
+function pn_testRaw() {
+    $r = pn_getRawAIResponse( 1, "AI_friendly", "Hey there, how are you?" );
+    echo $r;
+    }
+
+
+
+// queries hidden AI for $aiPageName and spends credits directly
+function pn_getRawAIResponse( $user_id, $aiPageName, $whatUserTyped ) {
+    $email = pn_getEmail( $user_id );
+
+    global $tableNamePrefix;
+
+    $result;
+
+    $numRows = 0;
+
+
+    // does a hidden owned AI exist already?
+    while( $numRows == 0 ) {
+    
+        $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+            "WHERE user_id = '$user_id' ".
+            "AND page_name = '$aiPageName' ".
+            "AND hidden = 1;";
+        
+        $result = pn_queryDatabase( $query );
+        
+        $numRows = mysqli_num_rows( $result );
+
+        if( $numRows == 0 ) {
+            // insert a new hidden AI with this page name
+            $query = "INSERT INTO $tableNamePrefix"."owned_ai ".
+                "SET user_id = '$user_id',".
+                "page_name = '$aiPageName',".
+                "ai_age = '0',".
+                "conversation_buffer = '',".
+                "conversation_log = '', first_response_sent = 0, ".
+                "last_time_music_played = CURRENT_TIMESTAMP, hidden = 1;";
+            
+            pn_queryDatabase( $query );
+
+
+            $query = "SELECT * FROM $tableNamePrefix"."pages ".
+                "WHERE name = '$aiPageName';";
+
+            $result = pn_queryDatabase( $query );
+    
+            $numRows = mysqli_num_rows( $result );
+    
+            if( $numRows != 1 ) {
+                // underlying AI page doesn't exist?
+                return "ERROR: Requested matrix ($aiPageName) not found.";
+                }
+
+            // seed it with display text
+            $display_text =
+                pn_mysqli_result( $result, 0, "display_text" );
+
+            $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+                "WHERE user_id = '$user_id' ".
+                "AND page_name = '$aiPageName' ".
+                "AND hidden = 1;";
+            
+            $result = pn_queryDatabase( $query );
+        
+            $numRows = mysqli_num_rows( $result );
+
+            if( $numRows > 0 ) {
+                $aiOwnedID = pn_mysqli_result( $result, 0, "id" );
+                pn_addToConversationBuffer( $aiOwnedID, $display_text, false );
+                }
+            else {
+                return "ERROR: Failed to create hidden matrix.";
+                }
+            }
+        }
+    
+    
+    // result is our matching hidden owned ID
+    $aiOwnedID = pn_mysqli_result( $result, 0, "id" );
+
+    $startAIAge = pn_mysqli_result( $result, 0, "ai_age" );
+
+    $seq = pn_getClientSequenceNumberForEmail( $email );
+    $hash = pn_getTrueHash( $email, $seq );
+
+    
+    /*
+      server.php
+      ?action=response_action
+      &carried_param=carried_param_value
+      &client_command=typed_text
+      &email=[email address]
+      &sequence_number=[int]
+      &hash_value=[hash value]
+    */
+    
+    global $fullServerURL;
+
+    $typed = urlencode( $whatUserTyped );
+    
+    
+    $url = $fullServerURL .
+        "?action=talk_ai&carried_param=$aiOwnedID&client_command=$typed&".
+        "email=$email&sequence_number=$seq&hash_value=$hash";
+
+    $response = file_get_contents( $url );
+    
+    $parts = preg_split( "/\n/", $response );
+
+    if( count( $parts ) < 9 ) {
+        return "ERROR: Unexpected response from internal server call.";
+        }
+
+    $aiLine = $parts[8];
+
+    $query = "SELECT ai_response_label FROM $tableNamePrefix"."pages ".
+        "WHERE name = '$aiPageName';";
+
+    $result = pn_queryDatabase( $query );
+    $ai_response_label = pn_mysqli_result( $result, 0, "ai_response_label" );
+    
+    $aiLine = trim( preg_replace( "/.*$ai_response_label/", "", $aiLine ) );
+
+    $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
+        "WHERE user_id = '$user_id' ".
+        "AND page_name = '$aiPageName' ".
+        "AND hidden = 1;";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        // check for age change, and spend credits
+        $endAIAge = pn_mysqli_result( $result, 0, "ai_age" );
+
+        $ageDiff = $endAIAge - $startAIAge;
+
+        if( $ageDiff > 0 ) {
+            
+            $query = "UPDATE $tableNamePrefix"."users ".
+                "SET credits = credits - $ageDiff WHERE id = $user_id;";
+            pn_queryDatabase( $query );
+            }
+        
+        // restore AI age to 0, because hidden AIs never die
+        // instead, they spend credits from user's account directly when used
+        $query = "UPDATE $tableNamePrefix"."owned_ai SET ai_age = 0 ".
+            "WHERE user_id = '$user_id' ".
+            "AND page_name = '$aiPageName' ".
+            "AND hidden = 1;";
+        pn_queryDatabase( $query );
+        }
+    
+    
+    return $aiLine;
+    }
+
+
 
 
 
@@ -5100,6 +5278,23 @@ function pn_customSearch() {
 
 
 
+function pn_getTrueHash( $email, $sequence_number ) {
+    $pass_words = pn_getPassWordsForEmail( $email );
+
+    // hash pass-words without spaces
+    // client does the same
+    // this avoids confusion, if user enters pass-words with or without
+    // spaces, they will still work
+    $pass_words = join( "", preg_split( "/\s+/", $pass_words ) );
+    
+    $computedHashValue =
+        strtoupper( pn_hmac_sha1( $pass_words, $sequence_number ) );
+
+    return $computedHashValue;
+    }
+
+
+
 function pn_checkClientSeqHash( $email ) {
     global $sharedGameServerSecret;
 
@@ -5135,17 +5330,8 @@ function pn_checkClientSeqHash( $email ) {
 
     $correct = false;
 
-    $pass_words = pn_getPassWordsForEmail( $email );
-
-    // hash pass-words without spaces
-    // client does the same
-    // this avoids confusion, if user enters pass-words with or without
-    // spaces, they will still work
-    $pass_words = join( "", preg_split( "/\s+/", $pass_words ) );
+    $computedHashValue = pn_getTrueHash( $email, $sequence_number );
     
-    $computedHashValue =
-        strtoupper( pn_hmac_sha1( $pass_words, $sequence_number ) );
-
 
     $attackSleepTime = 3;
     
@@ -5419,7 +5605,7 @@ function pn_replaceVarsInLine( $email, $inLine ) {
     $query = "SELECT * from $tableNamePrefix"."owned_ai as owned_ai ".
         "INNER JOIN $tableNamePrefix"."pages AS pages ".
         "ON owned_ai.page_name = pages.name ".
-        "WHERE owned_ai.user_id = '$user_id';";
+        "WHERE owned_ai.user_id = '$user_id' AND owned_ai.hidden = 0;";
 
     $after = 1;
     $listText = "";

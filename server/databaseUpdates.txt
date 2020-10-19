@@ -47,3 +47,10 @@ ALTER TABLE novemberServer_pages ADD COLUMN ai_music_urls TEXT NOT NULL AFTER ai
 ALTER TABLE novemberServer_owned_ai ADD COLUMN last_time_music_played DATETIME NOT NULL AFTER first_response_sent;
 
 UPDATE novemberServer_owned_ai SET last_time_music_played = CURRENT_TIMESTAMP;
+
+
+
+
+ALTER TABLE novemberServer_owned_ai ADD COLUMN hidden TINYINT NOT NULL AFTER last_time_music_played;
+
+UPDATE novemberServer_owned_ai SET hidden = 0;
