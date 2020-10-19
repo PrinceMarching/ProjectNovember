@@ -4007,7 +4007,7 @@ function pn_phoneChat() {
     $phone_number = pn_requestFilter( "From", "/\+?[0-9]+/i", "" );
 
     // send raw body through, no filtering
-    $body = $_REQUEST[ "body" ];
+    $body = $_REQUEST[ "Body" ];
     pn_talkAIPhone( $phone_number, $body );
     }
 
@@ -4022,8 +4022,24 @@ function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
         // phone currently talks to just one matrix
 
         $r = pn_getRawAIResponse( $user_id,
-                                  "AI_friendly", $whatUserTyped );
+                                  "AI_friendly_gpt3", $whatUserTyped );
 
+        $special = strtolower( trim( $whatUserTyped ) );
+
+        if( $special == "wipe" ) {
+            $r = "[Memory buffer wiped.]";
+            }
+        else if( $special == "kill" ) {
+            $r = "[Matrix killed.]";
+            }
+        else if( $special == "exit" ) {
+            $r = "[Cannot exit from phone chat.]";
+            }
+        else if( $special == "help" ) {
+            $r = "[Cannot access help from phone chat.]";
+            }            
+        
+        
         global $twilioFromNumber, $twilioAccount, $twilioAuthToken;
         
         $postBody = http_build_query(
