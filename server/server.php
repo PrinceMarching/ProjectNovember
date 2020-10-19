@@ -1609,7 +1609,7 @@ function pn_updatePhoneNumber() {
     pn_checkPassword( "updatePhoneNumber" );
 
     $n = pn_requestFilter( "number", "/\+?[0-9]+/i", "" );
-    $aiPageName = pn_requestFilter( "page_name", "/[A-Z0-9-]+/i", "" );
+    $aiPageName = pn_requestFilter( "page_name", "/[A-Z0-9\-_]+/i", "" );
 
     $email = pn_getEmailParam();
 
