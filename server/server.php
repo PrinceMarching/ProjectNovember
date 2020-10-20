@@ -185,6 +185,9 @@ else if( $action == "test_raw" ) {
 else if( $action == "phone_chat" ) {
     pn_phoneChat();
     }
+else if( $action == "alexa_chat" ) {
+    pn_alexaChat();
+    }
 else if( $action == "custom_create" ) {
     pn_customCreate();
     }
@@ -4002,6 +4005,16 @@ function pn_getUserIDForPhoneNumber( $phone_number ) {
         return pn_mysqli_result( $result, 0, "id" );
         }
     return -1;
+    }
+
+
+
+
+function pn_alexaChat() {
+
+    $fullRequest = file_get_contents( 'php://input' );
+
+    pn_log( "Got alexaChat request:  $fullRequest" );
     }
 
 
