@@ -4061,8 +4061,8 @@ function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
             // non command, make more life-like with 10 sec total delay
             $deltaTime = microtime( true ) - $startTime;
 
-            if( $deltaTime < 10 ) {
-                $extra = 10 - $deltaTime;
+            if( $deltaTime < 7 ) {
+                $extra = 7 - $deltaTime;
                 
                 usleep( $extra * 1000000 );
                 }
