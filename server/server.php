@@ -4041,13 +4041,6 @@ function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
             }
         
         
-        $deltaTime = microtime( true ) - $startTime;
-
-        if( $deltaTime < 10 ) {
-            $extra = 10 - $deltaTime;
-
-            usleep( $extra * 1000000 );
-            }
         
         
         $special = strtolower( trim( $whatUserTyped ) );
@@ -4064,6 +4057,16 @@ function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
         else if( $special == "help" ) {
             $r = "[Cannot access help from phone chat.]";
             }            
+        else {
+            // non command, make more life-like with 10 sec total delay
+            $deltaTime = microtime( true ) - $startTime;
+
+            if( $deltaTime < 10 ) {
+                $extra = 10 - $deltaTime;
+                
+                usleep( $extra * 1000000 );
+                }
+            }
         
         
         global $twilioFromNumber, $twilioAccount, $twilioAuthToken;
