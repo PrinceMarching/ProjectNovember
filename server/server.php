@@ -4018,6 +4018,8 @@ function pn_phoneChat() {
 
 
 function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
+    $startTime = microtime( true );
+    
     $user_id = pn_getUserIDForPhoneNumber( $senderPhoneNumber );
 
 
@@ -4031,6 +4033,23 @@ function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
         $r = pn_getRawAIResponse( $user_id,
                                   $aiPageName, $whatUserTyped );
 
+        if( $r == "" ) {
+            // no response came back
+            // since this is SMS, just leave it blank for now
+            // let user type something else again
+            return;
+            }
+        
+        
+        $deltaTime = microtime( true ) - $startTime;
+
+        if( $deltaTime < 10 ) {
+            $extra = 10 - $deltaTime;
+
+            usleep( $extra * 1000000 );
+            }
+        
+        
         $special = strtolower( trim( $whatUserTyped ) );
 
         if( $special == "wipe" ) {
@@ -4196,9 +4215,17 @@ function pn_getRawAIResponse( $user_id, $aiPageName, $whatUserTyped ) {
 
     $result = pn_queryDatabase( $query );
     $ai_response_label = pn_mysqli_result( $result, 0, "ai_response_label" );
-    
-    $aiLine = trim( preg_replace( "/.*$ai_response_label/", "", $aiLine ) );
 
+
+    if( ! preg_match( "/$ai_response_label/", $aiLine ) ) {
+        // line that we trimmed out doesn't have what we're looking for
+        // return blank instead
+        $aiLine = "";
+        }
+    else {
+        $aiLine = trim( preg_replace( "/.*$ai_response_label/", "", $aiLine ) );
+        }
+    
     $query = "SELECT * FROM $tableNamePrefix"."owned_ai ".
         "WHERE user_id = '$user_id' ".
         "AND page_name = '$aiPageName' ".
