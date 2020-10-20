@@ -4014,7 +4014,44 @@ function pn_alexaChat() {
 
     $fullRequest = file_get_contents( 'php://input' );
 
-    pn_log( "Got alexaChat request:  $fullRequest" );
+    $a = json_decode( $fullRequest, true );
+
+    $intentName = $a['request']['intent']['name'];
+
+
+    $responseText;
+
+    
+    if( $intentName == "TalkToSamanthaIntent" ) {
+        $responseText = "Samantha is ready.  You talk first.";
+        }
+    else if( $intentName == "SamanthaChatIntent" ) {
+        // an open-ended chat
+        $whatTheySaid = $a['request']['intent']['slots']['query']['value'];
+
+        // test with user id 1 for now
+        $user_id = 1;
+        
+        $aiPageName = pn_getUserField( pn_getEmail( $user_id ),
+                                       "phone_matrix", "AI_friendly_gpt3" );
+        
+        $responseText = pn_getRawAIResponse( $user_id,
+                                             $aiPageName, $whatTheySaid );
+        }
+    else {
+        $responseText = "ERROR:  intent not recognized.";
+        }
+
+
+    $r = json_encode( array( 'version' => '1.0',
+                             'response' =>
+                             array(
+                                 'outputSpeech' =>
+                                 array( 'type' => 'PlainText',
+                                        'text' => $responseText ),
+                                 'shouldEndSession' => false ) ) );
+
+    echo $r;
     }
 
 
