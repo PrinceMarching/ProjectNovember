@@ -4021,19 +4021,22 @@ function pn_alexaChat() {
 
     $responseText;
 
-    
+
+    // test with user id 1 for now
+    $user_id = 1;
+    $aiPageName = pn_getUserField( pn_getEmail( $user_id ),
+                                   "phone_matrix", "AI_friendly_gpt3" );
+        
     if( $intentName == "TalkToSamanthaIntent" ) {
         $responseText = "Samantha is ready.  You talk first.";
+
+        // force a wipe when starting a new conversation
+        pn_getRawAIResponse( $user_id,
+                             $aiPageName, "wipe" );
         }
     else if( $intentName == "SamanthaChatIntent" ) {
         // an open-ended chat
         $whatTheySaid = $a['request']['intent']['slots']['query']['value'];
-
-        // test with user id 1 for now
-        $user_id = 1;
-        
-        $aiPageName = pn_getUserField( pn_getEmail( $user_id ),
-                                       "phone_matrix", "AI_friendly_gpt3" );
         
         $responseText = pn_getRawAIResponse( $user_id,
                                              $aiPageName, $whatTheySaid );
