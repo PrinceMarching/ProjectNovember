@@ -3395,6 +3395,7 @@ function pn_talkAI() {
     $email = pn_checkAndUpdateClientSeqNumber();
 
     $aiOwnedID = pn_requestFilter( "carried_param", "/[0-9]+/i", "0" );
+    $forceShort = pn_requestFilter( "force_short", "/[01]+/i", "0" );
 
     global $tableNamePrefix;
     
@@ -3702,8 +3703,6 @@ function pn_talkAI() {
 
             $gennedLine = "";
             
-            $computerHasBeenCutOff = false;
-            
             if( count( $gennedChatLines ) > 1 ) {
                 $gennedLine = rtrim( $gennedChatLines[0] );
 
@@ -3746,6 +3745,35 @@ function pn_talkAI() {
                         // for next time
                         $forceAddElipses = true;
                         $aiDone = true;
+                        }
+                    else if( $forceShort ) {
+                        // we ended mid-sentence here, but see if we can walk
+                        // backward and find the end of an earlier sentence
+                        // to stop on.
+                        $lookFor = array( ".", "!", "?", '"' );
+                        // find post farther toward end
+                        $foundPos = 0;
+                        
+                        foreach( $lookFor as $e ) {
+                            $p = strrpos( $gennedLine, $e );
+                            if( $p === FALSE ) {
+                                // not found
+                                }
+                            else {
+                                if( $p > $foundPos ) {
+                                    $foundPos = $p;
+                                    }
+                                }
+                            }
+
+                        if( $foundPos > 0 ) {
+                            // found a spot to trim
+                            $gennedLine =
+                                substr( $gennedLine, 0, $foundPos + 1 );
+                            
+                            // end here, at this proper sentence termination.
+                            $aiDone = true;
+                            }
                         }
                     }
                 }
@@ -4039,7 +4067,12 @@ function pn_alexaChat() {
         $whatTheySaid = $a['request']['intent']['slots']['query']['value'];
         
         $responseText = pn_getRawAIResponse( $user_id,
-                                             $aiPageName, $whatTheySaid );
+                                             $aiPageName, $whatTheySaid,
+                                             // force short responses, if
+                                             // possible.  Don't keep
+                                             // verbal conversation partner
+                                             // waiting
+                                             true );
         }
     else {
         $responseText = "ERROR:  intent not recognized.";
@@ -4158,7 +4191,8 @@ function pn_talkAIPhone( $senderPhoneNumber, $whatUserTyped ) {
 
 
 // queries hidden AI for $aiPageName and spends credits directly
-function pn_getRawAIResponse( $user_id, $aiPageName, $whatUserTyped ) {
+function pn_getRawAIResponse( $user_id, $aiPageName, $whatUserTyped,
+                              $forceShort = false ) {
     $email = pn_getEmail( $user_id );
 
     global $tableNamePrefix;
@@ -4252,9 +4286,15 @@ function pn_getRawAIResponse( $user_id, $aiPageName, $whatUserTyped ) {
 
     $typed = urlencode( $whatUserTyped );
     
+    $forceShortParam = "";
+
+    if( $forceShort ) {
+        $forceShortParam = "&force_short=1";
+        }
     
     $url = $fullServerURL .
         "?action=talk_ai&carried_param=$aiOwnedID&client_command=$typed&".
+        $forceShortParam .
         "email=$email&sequence_number=$seq&hash_value=$hash";
 
     $response = file_get_contents( $url );
