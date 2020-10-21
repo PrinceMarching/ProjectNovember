@@ -4293,9 +4293,9 @@ function pn_getRawAIResponse( $user_id, $aiPageName, $whatUserTyped,
         }
     
     $url = $fullServerURL .
-        "?action=talk_ai&carried_param=$aiOwnedID&client_command=$typed&".
+        "?action=talk_ai&carried_param=$aiOwnedID&client_command=$typed".
         $forceShortParam .
-        "email=$email&sequence_number=$seq&hash_value=$hash";
+        "&email=$email&sequence_number=$seq&hash_value=$hash";
 
     $response = file_get_contents( $url );
     
