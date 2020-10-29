@@ -127,7 +127,8 @@ $requiredPages = array( "intro", "email_prompt", "pass_words_prompt", "login",
                         "main", "owned", "error", "custom", "existing_custom",
                         "matrix_dead", "purchase",
                         "wipe_result", "builtIn", "spinUp", "buy_credits",
-                        "insufficient_credits", "insufficient_credits_remote" );
+                        "insufficient_credits", "insufficient_credits_remote",
+                        "email_sent" );
 
 
 $replacableUserStrings = array( "%LAST_NAME%" => "fake_last_name",
@@ -1696,7 +1697,7 @@ function pn_showPageForm( $action, $name, $nameHidden, $body, $display_color,
 ?>
     <FORM ACTION="server.php" METHOD="post">
         <INPUT TYPE="hidden" NAME="action" VALUE="<?php echo $action;?>">
-        Name:
+    <?php if( $nameType != "hidden" ) echo "Name:"; ?>
     <INPUT TYPE="<?php echo $nameType;?>" MAXLENGTH=80 SIZE=20 NAME="name"
         value='<?php echo $name;?>'><br>
 
@@ -1864,6 +1865,7 @@ function pn_showPages() {
             preg_match( "/purchase_AI/i", $name ) ||
             preg_match( "/delete_AI/i", $name ) ||
             preg_match( "/custom_search/i", $name ) ||
+            preg_match( "/email_custom_matrices/i", $name ) ||
             preg_match( "/purchase_credits/i", $name ) ) {
             pn_arrayRemoveByValue( $missingLinkedPages, $name );
             }        
@@ -1984,6 +1986,7 @@ function pn_editPage() {
                 ! preg_match( "/purchase_AI/i", $n ) &&
                 ! preg_match( "/delete_AI/i", $n ) &&
                 ! preg_match( "/custom_search/i", $n ) &&
+                ! preg_match( "/email_custom_matrices/i", $n ) &&
                 ! preg_match( "/purchase_credits/i", $n ) ) {
 
                 if( preg_match( "/^[0-9]+#/", $n ) ) {
@@ -2503,6 +2506,12 @@ function pn_clientPage() {
                 // initiate cutstom search
 
                 pn_initiateCustomSearch( $email );
+                }
+            else if( preg_match( "/email_custom_matrices/", $pickedName ) ) {
+                // special case
+                // initiate email operation
+
+                pn_initiateCustomEmail( $email );
                 }
             else if( preg_match( "/purchase_AI/", $pickedName ) ) {
                 // special case
@@ -5564,6 +5573,104 @@ function pn_customSearch() {
         }
     
     pn_showPurchaseConfirmation( $email, "purchase_$name" );
+    }
+
+
+
+
+
+function pn_initiateCustomEmail( $email ) {
+
+    // first, compose and send the email
+
+    $body = "";
+
+    $user_id = pn_getUserID( $email );
+
+    global $tableNamePrefix;
+    
+    $query = "SELECT * from $tableNamePrefix"."pages ".
+        "WHERE ai_creator_id = '$user_id' AND ai_creator_deleted = 0;";
+    
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        for( $i=0; $i<$numRows; $i++ ) {
+            $ai_name = pn_mysqli_result( $result, $i, "ai_name" );
+            $ai_protocol = pn_mysqli_result( $result, $i, "ai_protocol" );
+            $ai_cost = pn_mysqli_result( $result, $i, "ai_cost" );
+            $display_color = pn_mysqli_result( $result, $i, "display_color" );
+            $prompt_color = pn_mysqli_result( $result, $i, "prompt_color" );
+            $human_response_label =
+                pn_mysqli_result( $result, $i, "human_response_label" );
+            $ai_response_label =
+                pn_mysqli_result( $result, $i, "ai_response_label" );
+            $display_text = pn_mysqli_result( $result, $i, "display_text" );
+
+            $ai_search_phrase =
+                pn_mysqli_result( $result, $i, "ai_search_phrase" );
+            }
+
+        $body = $body .
+            "\n\n\n\nName: $ai_name\n\n".
+            "Protocol: $ai_protocol\n\n".
+            "Cost: $ai_cost\n\n".
+            "Matrix color: $display_color\n\n".
+            "Human color: $prompt_color\n\n".
+            "Matrix label: $ai_response_label\n\n".
+            "Human label: $human_response_label\n\n".
+            "Search phrase: $ai_search_phrase\n\n".
+            "Training text:\n$display_text";
+        }
+    else {
+        $body = "You have no custom matrices to export.";
+        }
+    
+    pn_mail( $email,
+             "PROJECT DECEMBER custom matrix export",
+             $body,
+             true );
+    
+    
+    // next action
+    echo "page\n";
+
+    // page name as carried param
+    // NOTE that email_sent is a dummy page that isn't show in this case
+    // it's just used to bounce us back to CUSTOM menu
+    echo "email_sent\n";
+    
+    // no URL:
+    echo "open_url=\n";
+    // no sound:
+    echo "play_sound_url=\n";
+    // no prefix for what they type
+    echo "{}\n";
+
+
+    global $defaultPagePromptColor, $defaultPageTextColor, $defaultPageCharMS;
+    
+    echo "$defaultPagePromptColor\n";
+    
+    // DO clear
+    echo "1\n";
+
+    // use it for prompt too
+    echo "$defaultPagePromptColor\n";
+
+    
+    // blank line
+    echo "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ";
+
+    echo "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "Email sent to:";
+    echo "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "    $email";
+    
+    echo "\n[$defaultPageTextColor] [$defaultPageCharMS] [0] [0] ".
+        "Press ENTER to go back.";
     }
 
     
