@@ -5611,18 +5611,18 @@ function pn_initiateCustomEmail( $email ) {
 
             $ai_search_phrase =
                 pn_mysqli_result( $result, $i, "ai_search_phrase" );
+            
+            $body = $body .
+                "\n\n\n\nName: $ai_name\n\n".
+                "Protocol: $ai_protocol\n\n".
+                "Cost: $ai_cost\n\n".
+                "Matrix color: $display_color\n\n".
+                "Human color: $prompt_color\n\n".
+                "Matrix label: $ai_response_label\n\n".
+                "Human label: $human_response_label\n\n".
+                "Search phrase: $ai_search_phrase\n\n".
+                "Training text:\n$display_text";
             }
-
-        $body = $body .
-            "\n\n\n\nName: $ai_name\n\n".
-            "Protocol: $ai_protocol\n\n".
-            "Cost: $ai_cost\n\n".
-            "Matrix color: $display_color\n\n".
-            "Human color: $prompt_color\n\n".
-            "Matrix label: $ai_response_label\n\n".
-            "Human label: $human_response_label\n\n".
-            "Search phrase: $ai_search_phrase\n\n".
-            "Training text:\n$display_text";
         }
     else {
         $body = "You have no custom matrices to export.";
