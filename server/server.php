@@ -2746,6 +2746,9 @@ function pn_showPurchaseConfirmation( $email, $purchasePageName ) {
     if( $numRows == 1 ) {
         $ai_cost = pn_mysqli_result( $result, 0, "ai_cost" );
         $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
+        $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
+
+        $ai_name = pn_addDetailToName( $ai_name, $ai_protocol );
         
         if( $ai_cost > pn_getUserCredits( $email ) ) {
             global $neededCredits, $tryPurchaseName;
@@ -2980,7 +2983,9 @@ function pn_showDeleteConfirmation( $email, $deletePageName ) {
         $pageText = "\n\n        CONFIRM OPERATION\n\n";
         
         $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
-            
+        $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
+
+        $ai_name = pn_addDetailToName( $ai_name, $ai_protocol );
             
         $pageText = $pageText . "About to delete:  $ai_name\n";
             
@@ -3160,7 +3165,11 @@ function pn_initiateTalkAI( $email, $pickedName ) {
         }
 
     $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
+    $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
 
+    $ai_name = pn_addDetailToName( $ai_name, $ai_protocol );
+    
+    
     $display_color = pn_mysqli_result( $result, 0, "display_color" );
 
     global $defaultPageCharMS;
@@ -5492,8 +5501,8 @@ function pn_customSearch() {
     
     
     $remoteSecret =
-        strtolower( pn_requestFilter( "client_command",
-                                      "/[A-Z0-9 ]+/i", "" ) );
+        trim( strtolower( pn_requestFilter( "client_command",
+                                            "/[A-Z0-9 ]+/i", "" ) ) );
 
     if( $remoteSecret == "" ) {
         pn_standardResponseForPage( $email, "custom" );
@@ -5505,7 +5514,7 @@ function pn_customSearch() {
     
     global $tableNamePrefix;
     
-    $query = "SELECT name, ai_name, ai_cost, ai_creator_id ".
+    $query = "SELECT name, ai_name, ai_protocol, ai_cost, ai_creator_id ".
         "FROM $tableNamePrefix"."pages ".
         "WHERE ai_creator_id > 0 ".
         "      AND ai_search_phrase = '$remoteSecret';";
@@ -5522,6 +5531,10 @@ function pn_customSearch() {
     $ai_creator_id = pn_mysqli_result( $result, 0, "ai_creator_id" );
     $ai_name = pn_mysqli_result( $result, 0, "ai_name" );
 
+    $ai_protocol = pn_mysqli_result( $result, 0, "ai_protocol" );
+
+    $ai_name = pn_addDetailToName( $ai_name, $ai_protocol );
+    
     if( $ai_creator_id == $uid ) {
         pn_initiateCustomSearch( $email, "Matrix $ai_name is local." );
         return;
@@ -5794,6 +5807,16 @@ function pn_generateRandomLastName() {
 
 
 
+function pn_addDetailToName( $ai_name, $ai_protocol ) {
+    if( ( $ai_protocol == "gpt3" ||
+          $ai_protocol == "gpt3Force" ) &&
+        strpos( $ai_name, "G3" ) === FALSE ) {
+        
+        $ai_name = "$ai_name G3";
+        }
+    return $ai_name;
+    }
+
 
 
 // Gets replaced with number of credits needed when purchase fails
@@ -5890,12 +5913,15 @@ function pn_replaceVarsInLine( $email, $inLine ) {
         for( $i=0; $i<$numRows; $i++ ) {
             $age = pn_mysqli_result( $result, $i, "ai_age" );
             $ai_name = pn_mysqli_result( $result, $i, "ai_name" );
+            $ai_protocol = pn_mysqli_result( $result, $i, "ai_protocol" );
             $ai_longevity = pn_mysqli_result( $result, $i, "ai_longevity" );
 
             $fractionLeft = 1.0 - $age / $ai_longevity;
             $percentLeft = round( $fractionLeft * 100 );
             $menuNumber = $i + 1;
 
+            $ai_name = pn_addDetailToName( $ai_name, $ai_protocol );
+            
             $listText = $listText . " $menuNumber. $ai_name ($percentLeft%)\n";
             }
         }
@@ -5929,12 +5955,15 @@ function pn_replaceVarsInLine( $email, $inLine ) {
 
         for( $i=0; $i<$numRows; $i++ ) {
             $ai_name = pn_mysqli_result( $result, $i, "ai_name" );
+            $ai_protocol = pn_mysqli_result( $result, $i, "ai_protocol" );
             $ai_cost = pn_mysqli_result( $result, $i, "ai_cost" );
             $ai_search_phrase =
                 pn_mysqli_result( $result, $i, "ai_search_phrase" );
 
             $menuNumber = $i + 1;
 
+            $ai_name = pn_addDetailToName( $ai_name, $ai_protocol );
+            
             $listText = $listText . " $menuNumber. $ai_name".
                 "\n    Remote Secret:".
                 "\n      $ai_search_phrase" .
