@@ -3849,6 +3849,15 @@ function pn_talkAI() {
     // response is complete and ready!
 
 
+    global $gpt3BurnRate, $gpt3Enabled;
+    
+    if( $ai_protocol == "gpt3Force" ||
+        ( $ai_protocol == "gpt3" && $gpt3Enabled ) ) {
+
+        $responseCost *= $gpt3BurnRate;
+        }
+        
+
     $query = "UPDATE $tableNamePrefix"."owned_ai ".
         "SET ai_age = ai_age + $responseCost ".
         "WHERE id = '$aiOwnedID';";

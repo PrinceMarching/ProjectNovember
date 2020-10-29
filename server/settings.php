@@ -133,6 +133,10 @@ $openAIKey = "sk_";
 $gpt3Enabled = false;
 
 
+// rate at which GPT-3 matrices burn life, relative to coreWeave matrices
+$gpt3BurnRate = 2;
+
+
 
 // replace with live secret from Stripe.
 $stripeWebhookSecret = "whsec_DOAaOfi6oovfI9anrb6pSy3ofEF3uIWJ";
