@@ -5631,7 +5631,9 @@ function pn_initiateCustomEmail( $email ) {
     pn_mail( $email,
              "PROJECT DECEMBER custom matrix export",
              $body,
-             true );
+             // transactional emails have lines split in quoted-printable format
+             // sendgrid doesn't do this, making it better for a pure export.
+             false );
     
     
     // next action
