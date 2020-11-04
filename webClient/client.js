@@ -1242,7 +1242,7 @@ function startLoginA() {
 	hidePrompt = true;
 	var fullURL = serverURL.
 		concat( "?action=get_client_sequence_number&email=" ).
-		concat( email );
+		concat( encodeURIComponent( email ) );
 	getURLAndCall( fullURL, startLoginB );
 	}
 
@@ -1255,7 +1255,7 @@ function startLoginB( inResponse ) {
 	
 	var fullURL = serverURL.
 		concat( "?action=login&email=" ).
-		concat( email ).
+		concat( encodeURIComponent( email ) ).
 		concat( getSeqAndHash() );
 	getURLAndCall( fullURL, parseStandardResponse );
 }
@@ -1408,7 +1408,7 @@ function triggerNextAction( inWhatUserTyped ) {
 		concat( "&client_command=" ).
 		concat( encoded ).
 		concat( "&email=" ).
-		concat( email ).
+		concat( encodeURIComponent( email ) ).
 		concat( getSeqAndHash() );
 	
 	getURLAndCall( fullURL, parseStandardResponse );
