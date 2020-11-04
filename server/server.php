@@ -1634,7 +1634,7 @@ function pn_updatePhoneNumber() {
 function pn_getEmailParam() {
     $email = strtolower(
         pn_requestFilter( "email",
-                          "/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+/i", "" ) );
+                          "/[A-Z0-9._%\+\-]+@[A-Z0-9.\-]+/i", "" ) );
     return $email;
     }
 
