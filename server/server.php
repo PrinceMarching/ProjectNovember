@@ -5738,7 +5738,7 @@ function pn_checkClientSeqHash( $email ) {
     
     
     if( $computedHashValue != $hash_value ) {
-        pn_log( "checkClientSeqHash denied, hash check failed" );
+        pn_log( "checkClientSeqHash denied ($email), hash check failed" );
 
         // ALWAYS sleep on hash failure
         // thus, attacker can't tell difference between an active and
