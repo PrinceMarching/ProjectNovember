@@ -258,6 +258,9 @@ else if( $action == "show_conversation" ) {
 else if( $action == "show_live_conversation" ) {
     pn_showLiveConversation();
     }
+else if( $action == "show_conversation_buffer" ) {
+    pn_showConversationBuffer();
+    }
 else if( $action == "delete_user" ) {
     pn_deleteUser();
     }
@@ -1388,12 +1391,14 @@ function pn_showDetail( $checkPassword = true ) {
              echo "<br>";
 
     
+    $loggingOn = false;
     
     if( pn_getUserConversationsLogged( $email ) ) {
         echo "Conversation logging is ON (turn ";
         echo "<a href='server.php?action=toggle_conversation_logging".
             "&id=$user_id&set=0'>".
             "OFF</a>)";
+        $loggingOn = true;
         }
     else {
         echo "Conversation logging is OFF (turn ";
@@ -1441,9 +1446,19 @@ function pn_showDetail( $checkPassword = true ) {
             if( $hidden ) {
                 $hiddenString = " (hidden) ";
                 }
+
+            $bufferString = "buffer=$buff_len";
+
+            if( $loggingOn ) {
+                // enable decrypting and displaying of buffers, too
+                $bufferString =
+                    "<a href='server.php?action=show_conversation_buffer".
+                    "&id=$id'>$bufferString</a>";
+                }
+            
             
             echo "<a href='server.php?action=edit_page&name=$page_name'>$page_name</a> ".
-                "$hiddenString($age) [buffer=$buff_len] ".
+                "$hiddenString($age) [$bufferString] ".
                 "[<a href='server.php?action=show_live_conversation".
                 "&id=$id'>log=$log_len</a>]<br>";
             }
@@ -1571,6 +1586,34 @@ function pn_showLiveConversation() {
     if( $numRows > 0 ) {
         $c = pn_mysqli_result( $result, 0, "conversation_log" );
 
+        echo "<pre style='white-space: pre-wrap;'>$c</pre><br>";
+        }
+    else {
+        echo "Conversation not found for id = $id<br>";
+        }
+    
+    }
+
+
+function pn_showConversationBuffer() {
+    pn_checkPassword( "show_conversation_buffer" );
+    pn_showLinkHeader();
+
+    $id = pn_requestFilter( "id", "/[0-9]+/i", -1 );
+    
+    global $tableNamePrefix;
+    $query = "SELECT conversation_buffer ".
+             "FROM $tableNamePrefix"."owned_ai ".
+             "WHERE id = '$id';";
+
+    $result = pn_queryDatabase( $query );
+    
+    $numRows = mysqli_num_rows( $result );
+
+    if( $numRows > 0 ) {
+        $c = pn_decryptBuffer(
+            pn_mysqli_result( $result, 0, "conversation_buffer" ) );
+        
         echo "<pre style='white-space: pre-wrap;'>$c</pre><br>";
         }
     else {
