@@ -430,14 +430,40 @@ if( ! onMobile ) {
 }
 
 
-// kick things off by fetching intro text from server
-getIntroText();
 
-
-
+var email = "";
+var passWords = "";
 
 var charPrintingStartTime = 0;
 var charPrintingStepMS = 25;
+
+
+
+const queryString = window.location.search;
+
+const urlParams = new URLSearchParams( queryString );
+
+
+if( urlParams.has( "email" ) && urlParams.has( "passwords" ) ) {
+	// login params specified in url
+	email = urlParams.get( "email" ); 	
+
+	passWords = urlParams.get( "passwords" ).trim().split( /\s+/ ).join( "" );
+	
+	addLineToBuffer( "CONNECTING...", "#FFFFFF", charPrintingStepMS, 0, 0 );
+
+	// wait for CONNECTING message to be displayed
+	setTimeout( startLoginA, 1000 );
+}
+else {
+	// interactive login
+	// kick things off by fetching intro text from server
+	getIntroText();
+}
+
+
+
+
 
 
 
@@ -462,8 +488,6 @@ var scrollUp = 0;
 
 var hidePrompt = true;
 
-var email = "";
-var passWords = "";
 
 var forceReLogin = false;
 
