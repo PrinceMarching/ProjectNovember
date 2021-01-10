@@ -67,3 +67,10 @@ UPDATE novemberServer_users SET phone_number = "";
 ALTER TABLE novemberServer_users ADD COLUMN phone_matrix TEXT NOT NULL AFTER phone_number;
 
 UPDATE novemberServer_users SET phone_matrix = "";
+
+
+
+
+ALTER TABLE novemberServer_users ADD COLUMN force_matrix TEXT NOT NULL AFTER phone_matrix;
+
+UPDATE novemberServer_users SET force_matrix = "";

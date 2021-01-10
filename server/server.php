@@ -545,7 +545,8 @@ function pn_setupDatabase() {
             "conversations_logged TINYINT NOT NULL,".
             "next_custom_page_id INT NOT NULL, ".
             "phone_number TEXT NOT NULL, ".
-            "phone_matrix TEXT NOT NULL );";
+            "phone_matrix TEXT NOT NULL, ".
+            "force_matrix TEXT NOT NULL );";
 
         $result = pn_queryDatabase( $query );
 
@@ -850,7 +851,8 @@ function pn_addUser() {
         "current_page = '', client_sequence_number = '$seq', ".
         "last_good_hash_time = CURRENT_TIMESTAMP, ".
         "num_times_exit_used = 0, conversations_logged = 0, ".
-        "next_custom_page_id = 1, phone_number = '', phone_matrix = '';";
+        "next_custom_page_id = 1, phone_number = '', phone_matrix = '', ".
+        "force_matrix = '' ;";
 
 
     global $pn_mysqlLink;
@@ -1342,13 +1344,14 @@ function pn_showDetail( $checkPassword = true ) {
         $user_id = pn_getUserID( $email );
         }
     
-    $query = "SELECT phone_number, phone_matrix, credits ".
+    $query = "SELECT phone_number, phone_matrix, force_matrix, credits ".
             "FROM $tableNamePrefix"."users ".
             "WHERE id = '$user_id';";
     $result = pn_queryDatabase( $query );
     
     $phone_number = pn_mysqli_result( $result, 0, "phone_number" );
     $phone_matrix = pn_mysqli_result( $result, 0, "phone_matrix" );
+    $force_matrix = pn_mysqli_result( $result, 0, "force_matrix" );
     $credits = pn_mysqli_result( $result, 0, "credits" );
     
     
@@ -1377,12 +1380,13 @@ function pn_showDetail( $checkPassword = true ) {
     // form for setting phone number
 ?>
         <td>
-        Phone number:
+        
             <FORM ACTION="server.php" METHOD="post">
     <INPUT TYPE="hidden" NAME="action" VALUE="update_phone_number">
     <INPUT TYPE="hidden" NAME="email" VALUE="<?php echo $email;?>">
-    <INPUT TYPE="text" MAXLENGTH=15 SIZE=15 NAME="number" VALUE="<?php echo $phone_number;?>"><br>
-             Phone matrix<INPUT TYPE="text" MAXLENGTH=40 SIZE=15 NAME="page_name" VALUE="<?php echo $phone_matrix;?>"><br>
+    Phone number: <INPUT TYPE="text" MAXLENGTH=15 SIZE=15 NAME="number" VALUE="<?php echo $phone_number;?>"><br>
+             Phone matrix: <INPUT TYPE="text" MAXLENGTH=40 SIZE=15 NAME="page_name" VALUE="<?php echo $phone_matrix;?>"><br>
+             Force matrix: <INPUT TYPE="text" MAXLENGTH=40 SIZE=15 NAME="force_page_name" VALUE="<?php echo $force_matrix;?>"><br>
     <INPUT TYPE="Submit" VALUE="Update">
     </FORM>
         </td>
@@ -1657,17 +1661,20 @@ function pn_updatePhoneNumber() {
 
     $n = pn_requestFilter( "number", "/\+?[0-9]+/i", "" );
     $aiPageName = pn_requestFilter( "page_name", "/[A-Z0-9\-_]+/i", "" );
+    $aiPageNameForce =
+        pn_requestFilter( "force_page_name", "/[A-Z0-9\-_]+/i", "" );
 
     $email = pn_getEmailParam();
 
     global $tableNamePrefix;
     
     $query = "UPDATE $tableNamePrefix"."users ".
-        "SET phone_number = '$n', phone_matrix = '$aiPageName' ".
+        "SET phone_number = '$n', phone_matrix = '$aiPageName', ".
+        "force_matrix = '$aiPageNameForce' ".
         "WHERE email = '$email';";
     $result = pn_queryDatabase( $query );
     
-    echo "Updated phone number and matrix for $email<br>";
+    echo "Updated phone number and phone/force matrix for $email<br>";
     
     pn_showDetail( false );
     }
@@ -2414,9 +2421,67 @@ function pn_getPassWordsForEmail( $inEmail ) {
 
 
 function pn_clientLogin() {
+    global $tableNamePrefix;
+    
     $email = pn_checkAndUpdateClientSeqNumber();
 
-    pn_standardResponseForPage( $email, "login" );
+    $force_matrix = pn_getUserField( $email, "force_matrix", "" );    
+
+    if( $force_matrix == "" ) {
+        // show normal menu experience
+        pn_standardResponseForPage( $email, "login" );
+        }
+    else {
+        // force specified, override by setting them up to talk to forced
+        // matrix directly
+        
+        $user_id = pn_getUserID( $email );
+
+        // delete all existing pages with same name as force for this user
+        $query = "DELETE FROM $tableNamePrefix"."owned_ai ".
+            "WHERE user_id = '$user_id' AND page_name = '$force_matrix' ";
+        
+        pn_queryDatabase( $query );
+
+        
+        // note that forced_matrix users can spin up AIs for free always.
+        
+        // now insert a new one        
+        $query = "INSERT INTO $tableNamePrefix"."owned_ai ".
+            "SET user_id = '$user_id',".
+            "page_name = '$force_matrix',".
+            "ai_age = '0',".
+            "conversation_buffer = '',".
+            "conversation_log = '', first_response_sent = 0, ".
+            "last_time_music_played = CURRENT_TIMESTAMP, hidden = 0;";
+            
+        pn_queryDatabase( $query );
+
+        
+        // now get the new owned ID
+        $owned_id = -1;
+        
+        $query = "SELECT id from $tableNamePrefix"."owned_ai ".
+                "WHERE user_id = '$user_id' AND page_name = '$force_matrix';";
+            
+        $result = pn_queryDatabase( $query );
+        
+        $numRows = mysqli_num_rows( $result );
+        
+        if( $numRows > 0 ) {
+            $owned_id = pn_mysqli_result( $result, 0, "id" );
+            }
+
+
+        if( $owned_id != -1 ) {
+            pn_initiateTalkAI( $email, "talk_AI_" . $owned_id );
+            }
+        else {
+            // failed to create owned page
+            // show normal menu experience
+            pn_standardResponseForPage( $email, "login" );
+            }
+        }
     }
 
 
@@ -6419,7 +6484,7 @@ function pn_purchase() {
                     "last_good_hash_time = CURRENT_TIMESTAMP, ".
                     "num_times_exit_used = 0, conversations_logged = 0, ".
                     "next_custom_page_id = 1, phone_number = '', ".
-                    "phone_matrix = '';";
+                    "phone_matrix = '', force_matrix = '' ;";
                 
                 $result = pn_queryDatabase( $query );
                 
