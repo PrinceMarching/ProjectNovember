@@ -1344,21 +1344,30 @@ function pn_showDetail( $checkPassword = true ) {
         $user_id = pn_getUserID( $email );
         }
     
-    $query = "SELECT phone_number, phone_matrix, force_matrix, credits ".
-            "FROM $tableNamePrefix"."users ".
-            "WHERE id = '$user_id';";
+    $query = "SELECT pass_words, phone_number, phone_matrix, ".
+        "force_matrix, credits ".
+        "FROM $tableNamePrefix"."users ".
+        "WHERE id = '$user_id';";
     $result = pn_queryDatabase( $query );
     
+    $pass_words = pn_mysqli_result( $result, 0, "pass_words" );
     $phone_number = pn_mysqli_result( $result, 0, "phone_number" );
     $phone_matrix = pn_mysqli_result( $result, 0, "phone_matrix" );
     $force_matrix = pn_mysqli_result( $result, 0, "force_matrix" );
     $credits = pn_mysqli_result( $result, 0, "credits" );
+
+    $pass_words = join( "", preg_split( "/\s+/", $pass_words ) );
     
     
     echo "<center><table border=0><tr><td>";
     
     echo "<b>ID:</b> $user_id<br><br>";
     echo "<b>Email:</b> $email<br><br>";
+
+    global $terminalURL;
+    $termURL = $terminalURL . "?email=$email&passwords=$pass_words";
+    
+    echo "<b>Terminal URL:</b> <a href='$termURL'>Custom URL</a><br><br>";
     echo "<b>Computing Credits:</b> $credits<br><br>";
     echo "</td></tr></table>";
 
