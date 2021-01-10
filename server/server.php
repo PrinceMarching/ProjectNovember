@@ -2437,6 +2437,22 @@ function pn_clientLogin() {
         
         $user_id = pn_getUserID( $email );
 
+        
+        // wipe any existing owned matrix that matches $force_matrix
+        // so that convo gets logged, if needed
+        $query = "SELECT id from $tableNamePrefix"."owned_ai ".
+                "WHERE user_id = '$user_id' AND page_name = '$force_matrix';";
+            
+        $result = pn_queryDatabase( $query );
+        
+        $numRows = mysqli_num_rows( $result );
+        
+        if( $numRows > 0 ) {
+            $old_owned_id = pn_mysqli_result( $result, 0, "id" );
+            pn_wipeConversationBuffer( $old_owned_id, "force_matrix login" );
+            }        
+        
+        
         // delete all existing pages with same name as force for this user
         $query = "DELETE FROM $tableNamePrefix"."owned_ai ".
             "WHERE user_id = '$user_id' AND page_name = '$force_matrix' ";
